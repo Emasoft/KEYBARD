@@ -1,0 +1,117 @@
+[project]
+name = "keybard"
+version = "6.3.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Emasoft", email = "713559+Emasoft@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "python>=3.12",
+    "rich>=14.2.0",
+    "typing-extensions>=4.4.0",
+    "platformdirs>=3.6.0,<5",
+    
+    # start of [syntax] extras
+    # Require tree-sitter >= 0.25.0 and python >= 3.10
+    # Windows, MacOS and Linux binary wheels are available for all of the languages below.
+    "tree-sitter>=0.25.0",
+    "tree-sitter-python>=0.23.0",
+    "tree-sitter-markdown>=0.3.0",
+    "tree-sitter-json>=0.24.0",
+    "tree-sitter-toml>=0.6.0",
+    "tree-sitter-yaml>=0.6.0",
+    "tree-sitter-html>=0.23.0",
+    "tree-sitter-css>=0.23.0",
+    "tree-sitter-javascript>=0.23.0",
+    "tree-sitter-rust>=0.23.0,<=0.23.2",
+    "tree-sitter-go>=0.23.0",
+    "tree-sitter-regex>=0.24.0",
+    "tree-sitter-xml>=0.7.0",
+    "tree-sitter-sql>=0.3.0,<0.3.8",
+    "tree-sitter-java>=0.23.0",
+    "tree-sitter-bash>=0.23.0",
+    # end of [syntax] extras
+    
+    "pygments>=2.19.2"
+]
+
+license = "MIT"
+classifiers = [    
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Typing :: Typed",
+]
+include = [
+    "src/textual/py.typed",
+    { path = "tests", format = "sdist" },
+]
+
+
+[tool.ruff]
+target-version = "py312"
+
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "syntax: marks tests that require syntax highlighting (deselect with '-m \"not syntax\"')",
+]
+asyncio_default_fixture_loop_scope = "function"
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "uv_build>=0.9.0,<0.10.0",
+    "pytest>=8.4.2",
+    "black==24.4.2",
+    "ruff",
+    "griffe==0.32.3",
+    "httpx>=0.23.1",
+    "mypy>=1.0.0",
+    "pre-commit>=2.13.0",
+    "pytest>=8.3.1",
+    "pytest-xdist>=3.6.1",
+    "pytest-asyncio",
+    "pytest-cov>=5.0.0",
+    "types-setuptools>=67.2.0.1",
+    "isort>=5.13.2"
+]
+
+
+[extras]
+syntax = [
+    "tree-sitter",
+    "tree-sitter-python",
+    "tree-sitter-markdown",
+    "tree-sitter-json",
+    "tree-sitter-toml",
+    "tree-sitter-yaml",
+    "tree-sitter-html",
+    "tree-sitter-css",
+    "tree-sitter-javascript",
+    "tree-sitter-rust",
+    "tree-sitter-go",
+    "tree-sitter-regex",
+    "tree-sitter-xml",
+    "tree-sitter-sql",
+    "tree-sitter-java",
+    "tree-sitter-bash",
+]
