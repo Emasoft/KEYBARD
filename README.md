@@ -556,53 +556,218 @@ uv run pytest
 
 ## Roadmap
 
-KEYBARD is under active development. Here are planned features and improvements:
+KEYBARD is under active development. Each item below is a specific, self-contained feature that can be contributed individually.
 
 ### Timing-Based Events (v0.3.0+)
 
 - [x] Single key timing detection (KeyClick, KeyDown, KeyUp)
-- [ ] **Combo detection** - Track multiple keys pressed simultaneously
-  - [ ] ComboClick events (multiple keys pressed together, released quickly)
-  - [ ] ComboKeyDown events (multiple keys held together)
-  - [ ] Configurable combo window for key press timing
-  - [ ] Proper handling of modifier + key sequences
+- [ ] Implement simultaneous key press detection (buffer keys within time window)
+- [ ] Add ComboClick event emission for multi-key quick press/release
+- [ ] Add ComboKeyDown event emission for multi-key holds
+- [ ] Support configurable combo_window parameter in DispatcherConfig
+- [ ] Add combo disambiguation logic (e.g., Ctrl first vs C first)
+- [ ] Add tests for 2-key, 3-key, and 4+ key combinations
+- [ ] Document combo detection limitations with terminal input
 
 ### Key State Tracking (v0.3.0+)
 
-- [ ] **Key state API** - Query current state of any key
-  - [ ] `.is_pressed(key)` - Check if key is currently held
-  - [ ] `.pressed_keys()` - Get set of all currently pressed keys
-  - [ ] Support for modifier state queries (is_ctrl_pressed, etc.)
+- [ ] Add `.is_pressed(key: str) -> bool` method to KeyboardReader
+- [ ] Add `.pressed_keys() -> set[str]` method to KeyboardReader
+- [ ] Implement key state tracking dict internally (key → press time)
+- [ ] Add `.is_ctrl_pressed()`, `.is_alt_pressed()`, `.is_shift_pressed()` helpers
+- [ ] Add `.get_modifiers() -> set[str]` method (returns active modifiers)
+- [ ] Add key state change callbacks (on_key_press, on_key_release)
+- [ ] Implement key state persistence across read_key() calls
+- [ ] Add thread-safe locking for key state dict access
 
-### Configuration & Customization (v0.4.0+)
+### Event Processing & Filtering (v0.3.0+)
 
-- [ ] **Custom key mappings** - Allow users to remap keys
-- [ ] **Configurable key aliasing** - Custom key name normalization
-- [ ] **Timeout policies** - Customizable timeouts for various operations
-- [ ] **Event filtering** - Built-in event filters and transformers
+- [ ] Add EventFilter base class with filter() method
+- [ ] Implement DebounceFilter (ignore repeated events within time window)
+- [ ] Implement ModifierFilter (only pass events with specific modifiers)
+- [ ] Implement KeySequenceFilter (detect multi-key patterns like "gg", "jk")
+- [ ] Add event transformation API (Event → Event mapping)
+- [ ] Add event middleware chain support (multiple filters in sequence)
+- [ ] Implement event rate limiting (max events per second)
+- [ ] Add event logging filter for debugging
 
-### Platform & Compatibility (v0.4.0+)
+### Key Mapping & Remapping (v0.4.0+)
 
-- [ ] **Windows improvements** - Better Windows console support
-- [ ] **Kitty protocol support** - Enhanced keyboard protocol for modern terminals
-- [ ] **WSL detection** - Automatic WSL environment handling
-- [ ] **Terminal capability detection** - Auto-detect terminal features
+- [ ] Add KeyMapper class with add_mapping(from_key, to_key) method
+- [ ] Support key-to-key remapping (e.g., "capslock" → "ctrl")
+- [ ] Support key-to-sequence remapping (e.g., "f1" → "ctrl+s")
+- [ ] Add context-aware mappings (different maps for different app states)
+- [ ] Implement mapping file loading (.keybard or .json format)
+- [ ] Add hot-reload support for mapping files
+- [ ] Validate remapped key names against Keys enum
+- [ ] Add mapping conflict detection and warnings
 
-### Developer Experience (Ongoing)
+### Input Validation & Constraints (v0.4.0+)
 
-- [ ] **Performance profiling** - Benchmark suite and optimization
-- [ ] **Debug mode** - Verbose logging and diagnostics
-- [ ] **Type stubs improvements** - Enhanced type hints for better IDE support
-- [ ] **Documentation examples** - More real-world usage examples
+- [ ] Add InputValidator base class with validate(event) method
+- [ ] Implement AlphanumericValidator (only allow letters/numbers)
+- [ ] Implement NumericValidator (only allow digits)
+- [ ] Implement RegexValidator (validate against custom pattern)
+- [ ] Add max_length constraint for text accumulation
+- [ ] Add allowed_keys and blocked_keys filter validators
+- [ ] Implement composable validators (AND, OR, NOT logic)
+- [ ] Add validation error event type with reason
 
-### Stretch Goals (v1.0.0+)
+### Configuration & Settings (v0.4.0+)
 
-- [ ] **Vi/Emacs mode** - Pre-built keybinding modes for common editors
-- [ ] **Key chord detection** - Detect sequences like "g g" or "C-x C-s"
-- [ ] **Macro recording** - Record and replay key sequences
-- [ ] **Input validation** - Built-in validators for common patterns
+- [ ] Add per-event-type timeout configuration
+- [ ] Add configurable buffer sizes for event queue
+- [ ] Implement settings save/load from JSON or TOML
+- [ ] Add runtime configuration updates (without restart)
+- [ ] Support environment variable overrides for all settings
+- [ ] Add configuration validation with helpful error messages
+- [ ] Implement config profiles (dev, prod, debug presets)
+- [ ] Add config migration helpers for version upgrades
 
-**Note**: Roadmap items are not committed and may change based on community feedback and priorities. Want to help implement a feature? See [CONTRIBUTING.md](CONTRIBUTING.md)!
+### Platform-Specific Enhancements (v0.4.0+)
+
+#### Windows
+- [ ] Detect Windows Terminal vs CMD vs PowerShell
+- [ ] Add Windows Console virtual terminal sequences support
+- [ ] Implement proper Windows Input Method Editor (IME) support
+- [ ] Add Windows-specific key name normalization (e.g., Win key)
+- [ ] Support Windows clipboard integration events
+- [ ] Add Windows console color capability detection
+
+#### Linux/Unix
+- [ ] Add explicit support for Kitty keyboard protocol
+- [ ] Implement enhanced key reporting mode detection
+- [ ] Support tmux passthrough sequences
+- [ ] Add detection for WSL1 vs WSL2 vs native Linux
+- [ ] Implement proper locale-aware character mapping
+- [ ] Add systemd notification support for long-running apps
+
+#### macOS
+- [ ] Add Option/Command key distinction (left vs right)
+- [ ] Implement proper macOS dead key support
+- [ ] Add detection for Terminal.app vs iTerm2 vs Alacritty
+- [ ] Support macOS accessibility permissions detection
+- [ ] Add macOS-specific keyboard layout detection
+
+### Terminal Compatibility (v0.4.0+)
+
+- [ ] Add comprehensive terminal capability database
+- [ ] Implement terminfo query and parsing
+- [ ] Add automatic feature detection via CSI queries
+- [ ] Support graceful degradation for unsupported features
+- [ ] Add terminal-specific workarounds registry
+- [ ] Implement version detection for known terminals
+- [ ] Add warnings for known buggy terminal versions
+- [ ] Create terminal compatibility test suite
+
+### Developer Tools & Debugging (Ongoing)
+
+- [ ] Add verbose debug mode with detailed event logging
+- [ ] Implement event timeline visualization (ASCII art)
+- [ ] Add performance counters (events/sec, latency percentiles)
+- [ ] Create interactive key code inspector tool
+- [ ] Add memory profiling for long-running sessions
+- [ ] Implement event capture/replay for testing
+- [ ] Add assertion helpers for testing key sequences
+- [ ] Create minimal reproducible example generator
+
+### Documentation & Examples (Ongoing)
+
+- [ ] Add example: Build a CLI text editor with vim keybindings
+- [ ] Add example: Interactive menu system with arrow navigation
+- [ ] Add example: Real-time game input handling (WASD movement)
+- [ ] Add example: Password input with masked display
+- [ ] Add example: Autocomplete with tab completion
+- [ ] Add example: Multi-pane terminal UI with focus management
+- [ ] Add tutorial: Migrating from input()/getpass()
+- [ ] Add tutorial: Integrating with asyncio event loops
+- [ ] Create video walkthrough of common use cases
+- [ ] Add troubleshooting guide for common issues
+
+### Testing Infrastructure (Ongoing)
+
+- [ ] Add headless testing mode with simulated input
+- [ ] Create test fixture for injecting key events
+- [ ] Add property-based tests with Hypothesis
+- [ ] Implement terminal emulator integration tests
+- [ ] Add performance regression tests
+- [ ] Create test coverage report automation
+- [ ] Add mutation testing for critical paths
+- [ ] Implement fuzz testing for parser robustness
+
+### Type Safety & IDE Support (Ongoing)
+
+- [ ] Add strict type annotations to all internal functions
+- [ ] Create comprehensive .pyi stub files
+- [ ] Add type guards for event type narrowing
+- [ ] Implement Protocol classes for plugin interfaces
+- [ ] Add TypedDict for configuration objects
+- [ ] Create generic types for event handlers
+- [ ] Add overload signatures for polymorphic methods
+- [ ] Test type checking with mypy strict mode
+
+### Performance Optimizations (v0.5.0+)
+
+- [ ] Profile hot paths and optimize bottlenecks
+- [ ] Implement zero-copy parsing where possible
+- [ ] Add event pooling to reduce allocations
+- [ ] Optimize key name string interning
+- [ ] Add fast path for common key sequences
+- [ ] Implement batched event processing option
+- [ ] Add lazy initialization for unused features
+- [ ] Create performance benchmarking suite
+
+### Advanced Input Features (v1.0.0+)
+
+#### Key Chords & Sequences
+- [ ] Detect Emacs-style key chords (C-x C-s)
+- [ ] Support Vi-style key sequences (gg, dd, yy)
+- [ ] Add configurable chord timeout
+- [ ] Implement partial chord feedback
+- [ ] Support context-dependent chord interpretation
+- [ ] Add chord conflict resolution
+
+#### Macro System
+- [ ] Record key sequences to macros
+- [ ] Replay macros with configurable speed
+- [ ] Save/load macros to files
+- [ ] Support macro variables and interpolation
+- [ ] Add conditional macro execution
+- [ ] Implement macro loops and repetition
+
+#### Text Input Helpers
+- [ ] Add line editor with history (readline-like)
+- [ ] Implement word completion system
+- [ ] Add fuzzy search/filtering for suggestions
+- [ ] Support multi-line text input
+- [ ] Add undo/redo stack for text editing
+- [ ] Implement clipboard integration
+
+### Accessibility Features (v1.0.0+)
+
+- [ ] Add screen reader event announcements
+- [ ] Implement configurable key repeat rates
+- [ ] Support sticky keys (hold modifiers across presses)
+- [ ] Add toggle keys (caps lock, num lock indicators)
+- [ ] Implement filter keys (ignore brief accidental presses)
+- [ ] Support bounce keys (ignore rapid repeated presses)
+- [ ] Add visual keyboard echo mode
+- [ ] Implement sound feedback for key events
+
+### Integration & Ecosystem (v1.0.0+)
+
+- [ ] Add Rich library integration for styled output
+- [ ] Create Textual widget wrapping KeyboardReader
+- [ ] Add prompt_toolkit backend adapter
+- [ ] Support Click command-line framework integration
+- [ ] Create Typer integration examples
+- [ ] Add pytest plugin for keyboard testing
+- [ ] Implement MCP server for AI assistants
+- [ ] Create VS Code extension for debugging
+
+**Note**: Roadmap items are not committed and may change based on community feedback and priorities. Each checkbox represents a specific, self-contained contribution opportunity.
+
+**Want to contribute?** Pick any unchecked item and see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines!
 
 ---
 
