@@ -524,7 +524,7 @@ uv run pytest --cov=keybard --cov-report=term-missing
 uv run pytest tests/test_xterm_parser.py -v
 ```
 
-**Test Status**: ✅ 339 passed, 2 skipped (includes timing dispatcher tests)
+**Test Status**: ✅ 337 passed, 2 skipped (includes timing dispatcher tests)
 
 ---
 
