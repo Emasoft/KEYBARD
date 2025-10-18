@@ -205,17 +205,23 @@ def main():
 
         while True:
             current_time = time.time()
+            has_changes = False  # Track if anything changed this iteration
 
             # Check for key releases
             releases = tracker.check_releases(current_time)
-            for key, event_type in releases:
-                modifiers, base_key = parse_modifiers_and_key(key)
-                timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
-                visual = format_key_visual(base_key, modifiers)
-                history.append((timestamp, modifiers, base_key, event_type, visual))
+            if releases:
+                has_changes = True
+                for key, event_type in releases:
+                    modifiers, base_key = parse_modifiers_and_key(key)
+                    timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
+                    visual = format_key_visual(base_key, modifiers)
+                    history.append((timestamp, modifiers, base_key, event_type, visual))
 
             # Poll for new events (non-blocking)
             events = reader.poll()
+
+            if events:
+                has_changes = True
 
             for event in events:
                 # Handle quit commands
@@ -245,29 +251,30 @@ def main():
             if len(history) > max_history:
                 history = history[-max_history:]
 
-            # Create display table
-            table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 1), show_lines=True)
-            table.add_column("Time", style="dim", width=12, no_wrap=True)
-            table.add_column("Modifier", style="cyan", width=20)
-            table.add_column("Key", style="white", width=15)
-            table.add_column("Event Type", width=12)
-            table.add_column("Visual", width=35)
+            # Only redraw if something changed
+            if has_changes and history:
+                # Create display table
+                table = Table(show_header=True, header_style="bold magenta", box=None, padding=(0, 1), show_lines=True)
+                table.add_column("Time", style="dim", width=12, no_wrap=True)
+                table.add_column("Modifier", style="cyan", width=20)
+                table.add_column("Key", style="white", width=15)
+                table.add_column("Event Type", width=12)
+                table.add_column("Visual", width=35)
 
-            for ts, mod, key, evt, vis in history:
-                # Color code event types
-                if evt == "CLICK":
-                    evt_colored = f"[green]{evt}[/green]"
-                elif evt == "KEY-DOWN":
-                    evt_colored = f"[yellow]{evt}[/yellow]"
-                elif evt == "KEY-UP":
-                    evt_colored = f"[red]{evt}[/red]"
-                else:
-                    evt_colored = f"[white]{evt}[/white]"
+                for ts, mod, key, evt, vis in history:
+                    # Color code event types
+                    if evt == "CLICK":
+                        evt_colored = f"[green]{evt}[/green]"
+                    elif evt == "KEY-DOWN":
+                        evt_colored = f"[yellow]{evt}[/yellow]"
+                    elif evt == "KEY-UP":
+                        evt_colored = f"[red]{evt}[/red]"
+                    else:
+                        evt_colored = f"[white]{evt}[/white]"
 
-                table.add_row(ts, mod, key, evt_colored, vis)
+                    table.add_row(ts, mod, key, evt_colored, vis)
 
-            # Clear and redisplay
-            if history:  # Only redraw if we have events
+                # Clear and redisplay
                 console.clear()
                 console.print(create_help_panel())
                 console.print()
