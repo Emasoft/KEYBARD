@@ -554,6 +554,58 @@ uv run pytest
 
 ---
 
+## Roadmap
+
+KEYBARD is under active development. Here are planned features and improvements:
+
+### Timing-Based Events (v0.3.0+)
+
+- [x] Single key timing detection (KeyClick, KeyDown, KeyUp)
+- [ ] **Combo detection** - Track multiple keys pressed simultaneously
+  - [ ] ComboClick events (multiple keys pressed together, released quickly)
+  - [ ] ComboKeyDown events (multiple keys held together)
+  - [ ] Configurable combo window for key press timing
+  - [ ] Proper handling of modifier + key sequences
+
+### Key State Tracking (v0.3.0+)
+
+- [ ] **Key state API** - Query current state of any key
+  - [ ] `.is_pressed(key)` - Check if key is currently held
+  - [ ] `.pressed_keys()` - Get set of all currently pressed keys
+  - [ ] Support for modifier state queries (is_ctrl_pressed, etc.)
+
+### Configuration & Customization (v0.4.0+)
+
+- [ ] **Custom key mappings** - Allow users to remap keys
+- [ ] **Configurable key aliasing** - Custom key name normalization
+- [ ] **Timeout policies** - Customizable timeouts for various operations
+- [ ] **Event filtering** - Built-in event filters and transformers
+
+### Platform & Compatibility (v0.4.0+)
+
+- [ ] **Windows improvements** - Better Windows console support
+- [ ] **Kitty protocol support** - Enhanced keyboard protocol for modern terminals
+- [ ] **WSL detection** - Automatic WSL environment handling
+- [ ] **Terminal capability detection** - Auto-detect terminal features
+
+### Developer Experience (Ongoing)
+
+- [ ] **Performance profiling** - Benchmark suite and optimization
+- [ ] **Debug mode** - Verbose logging and diagnostics
+- [ ] **Type stubs improvements** - Enhanced type hints for better IDE support
+- [ ] **Documentation examples** - More real-world usage examples
+
+### Stretch Goals (v1.0.0+)
+
+- [ ] **Vi/Emacs mode** - Pre-built keybinding modes for common editors
+- [ ] **Key chord detection** - Detect sequences like "g g" or "C-x C-s"
+- [ ] **Macro recording** - Record and replay key sequences
+- [ ] **Input validation** - Built-in validators for common patterns
+
+**Note**: Roadmap items are not committed and may change based on community feedback and priorities. Want to help implement a feature? See [CONTRIBUTING.md](CONTRIBUTING.md)!
+
+---
+
 ## Acknowledgments
 
 KEYBARD's core keyboard parsing engine is derived from the **[Textual](https://github.com/Textualize/textual)** framework, created by Will McGugan and the team at Textualize.io.
@@ -602,6 +654,7 @@ Original Textual components: Copyright (c) 2020-2024 Will McGugan and Textualize
 
 - **Repository**: https://github.com/Emasoft/KEYBARD
 - **Issues**: https://github.com/Emasoft/KEYBARD/issues
+- **Roadmap**: [See Roadmap section](#roadmap) - Planned features and improvements
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 - **Acknowledgments**: [ACKNOWLEDGMENTS.md](ACKNOWLEDGMENTS.md)
 - **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
