@@ -364,7 +364,6 @@ from keybard.dispatcher import DispatcherConfig
 
 config = DispatcherConfig(
     delta=1.0,              # Time threshold for click vs hold (default: 1.0s)
-    combo_window=0.1,       # Max time between keys for combos (default: 0.1s)
     release_timeout=0.15,   # Time to detect key release (default: 0.15s)
     emit_repeats=False,     # Emit KeyDown on each repeat (default: False)
     repeat_interval=0.05,   # Min time between repeat emissions (default: 0.05s)

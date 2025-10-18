@@ -7,11 +7,12 @@ Demonstrates the timing-based event model that distinguishes between:
 - CLICK: Quick press and release (within delta threshold, default 1.0s)
 - KEY-DOWN: Key held past the delta threshold
 - KEY-UP: Key released after being held
-- COMBO-CLICK: Multiple keys pressed together, all released quickly
-- COMBO-KEY-DOWN: Multiple keys held together past delta
 
 This model allows applications to respond differently to quick taps vs
 prolonged holds, enabling richer interaction patterns.
+
+Note: Modifier combinations (Ctrl+C, Shift+A, etc.) come from the terminal
+parser as atomic Key events and are handled like single keys.
 
 IMPORTANT LIMITATION:
 Terminal input only provides key press events, never key release events.
@@ -32,8 +33,6 @@ from rich.text import Text
 
 from keybard import DispatcherConfig, KeyboardReader
 from keybard.events import (
-    ComboClick,
-    ComboKeyDown,
     Key,
     KeyClick,
     KeyDown,
@@ -66,15 +65,7 @@ def create_help_panel(delta: float) -> Panel:
 
     help_text.append("  • ", style="dim")
     help_text.append("KEY-UP", style="red")
-    help_text.append(" - Released after KEY-DOWN\n", style="dim")
-
-    help_text.append("  • ", style="dim")
-    help_text.append("COMBO-CLICK", style="magenta")
-    help_text.append(" - Multiple keys, released quickly\n", style="dim")
-
-    help_text.append("  • ", style="dim")
-    help_text.append("COMBO-KEY-DOWN", style="blue")
-    help_text.append(" - Multiple keys held together\n\n", style="dim")
+    help_text.append(" - Released after KEY-DOWN\n\n", style="dim")
 
     help_text.append("Try this:\n", style="bold green")
     help_text.append("  1. Tap 'a' quickly → ", style="dim")
@@ -86,14 +77,9 @@ def create_help_panel(delta: float) -> Panel:
     help_text.append(" then ", style="dim")
     help_text.append("KEY-UP\n", style="red")
 
-    help_text.append("  3. Tap Ctrl+C quickly → ", style="dim")
-    help_text.append("COMBO-CLICK", style="magenta")
-    help_text.append(" (quits)\n")
+    help_text.append("  3. Press Ctrl+C to quit", style="dim")
 
-    help_text.append("  4. Hold Ctrl+Shift+Arrow → ", style="dim")
-    help_text.append("COMBO-KEY-DOWN\n", style="blue")
-
-    help_text.append("\nNotice the delay before KEY-DOWN!\n", style="bold yellow")
+    help_text.append("\n\nNotice the delay before KEY-DOWN!\n", style="bold yellow")
 
     help_text.append("\n⚠️  ", style="dim")
     help_text.append("LIMITATION:", style="bold red")
@@ -136,22 +122,6 @@ def format_event(event) -> tuple[str, str, str, str]:
             f"{event.total_duration:.3f}s",
             "red",
         )
-    elif isinstance(event, ComboClick):
-        keys = "+".join(event.keys)
-        return (
-            "COMBO-CLICK",
-            keys,
-            f"{event.duration:.3f}s",
-            "magenta",
-        )
-    elif isinstance(event, ComboKeyDown):
-        keys = "+".join(event.keys)
-        return (
-            "COMBO-KEY-DOWN",
-            keys,
-            f"{event.hold_time:.3f}s",
-            "blue",
-        )
     elif isinstance(event, Key):
         # Raw key event (shouldn't happen with dispatcher, but handle it)
         return (
@@ -189,7 +159,7 @@ def main():
 
     # Configure delta threshold (time to distinguish click from hold)
     delta = 1.0  # 1 second - configurable
-    config = DispatcherConfig(delta=delta, combo_window=0.1)
+    config = DispatcherConfig(delta=delta)
 
     # Display initial help
     console.clear()
@@ -210,11 +180,8 @@ def main():
 
             for event in events:
                 # Handle quit
-                if isinstance(event, (KeyClick, ComboClick)):
-                    if isinstance(event, KeyClick) and event.key == "q":
-                        console.print("\n[bold green]Goodbye![/bold green]")
-                        return
-                    elif isinstance(event, ComboClick) and "ctrl" in event.keys and "c" in event.keys:
+                if isinstance(event, KeyClick):
+                    if event.key == "q" or event.key == "ctrl+c":
                         console.print("\n[bold green]Goodbye![/bold green]")
                         return
 

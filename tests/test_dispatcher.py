@@ -27,16 +27,14 @@ class TestDispatcherConfig:
         """Test default configuration values."""
         config = DispatcherConfig()
         assert config.delta == 1.0
-        assert config.combo_window == 0.1
         assert config.release_timeout == 0.15
         assert config.emit_repeats is False
         assert config.repeat_interval == 0.05
 
     def test_custom_config(self) -> None:
         """Test custom configuration values."""
-        config = DispatcherConfig(delta=0.5, combo_window=0.05, release_timeout=0.2, emit_repeats=True, repeat_interval=0.1)
+        config = DispatcherConfig(delta=0.5, release_timeout=0.2, emit_repeats=True, repeat_interval=0.1)
         assert config.delta == 0.5
-        assert config.combo_window == 0.05
         assert config.release_timeout == 0.2
         assert config.emit_repeats is True
         assert config.repeat_interval == 0.1
@@ -48,19 +46,6 @@ class TestDispatcherConfig:
 
         with pytest.raises(ValueError, match="delta must be positive"):
             DispatcherConfig(delta=-1.0)
-
-    def test_invalid_combo_window(self) -> None:
-        """Test that negative combo_window raises ValueError."""
-        with pytest.raises(ValueError, match="combo_window must be non-negative"):
-            DispatcherConfig(combo_window=-0.1)
-
-    def test_combo_window_too_large(self) -> None:
-        """Test that combo_window >= delta raises ValueError."""
-        with pytest.raises(ValueError, match="combo_window must be less than delta"):
-            DispatcherConfig(delta=1.0, combo_window=1.0)
-
-        with pytest.raises(ValueError, match="combo_window must be less than delta"):
-            DispatcherConfig(delta=1.0, combo_window=1.5)
 
     def test_invalid_release_timeout(self) -> None:
         """Test that invalid release_timeout raises ValueError."""
@@ -101,7 +86,7 @@ class TestKeyEventDispatcher:
     def test_single_key_click(self) -> None:
         """Test that single key press without repeat generates KeyClick."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05)  # Short delta for faster testing
+        config = DispatcherConfig(delta=0.1)  # Short delta for faster testing
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Simulate single key press
@@ -122,7 +107,7 @@ class TestKeyEventDispatcher:
     def test_key_hold_generates_keydown_and_keyup(self) -> None:
         """Test that holding a key generates KeyDown followed by KeyUp."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05, release_timeout=0.1)
+        config = DispatcherConfig(delta=0.1, release_timeout=0.1)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Simulate first key press
@@ -152,7 +137,7 @@ class TestKeyEventDispatcher:
     def test_key_hold_with_multiple_repeats(self) -> None:
         """Test that multiple repeats during hold work correctly."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05, release_timeout=0.1, emit_repeats=False)
+        config = DispatcherConfig(delta=0.1, release_timeout=0.1, emit_repeats=False)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # First press
@@ -182,7 +167,7 @@ class TestKeyEventDispatcher:
     def test_emit_repeats_enabled(self) -> None:
         """Test that emit_repeats=True emits KeyDown on each repeat."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05, release_timeout=0.1, emit_repeats=True, repeat_interval=0.01)
+        config = DispatcherConfig(delta=0.1, release_timeout=0.1, emit_repeats=True, repeat_interval=0.01)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # First press
@@ -211,7 +196,7 @@ class TestKeyEventDispatcher:
     def test_modifier_keys(self) -> None:
         """Test that modifier key combinations work correctly."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05)
+        config = DispatcherConfig(delta=0.1)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Simulate Ctrl+C press without hold
@@ -228,7 +213,7 @@ class TestKeyEventDispatcher:
     def test_special_keys(self) -> None:
         """Test that special keys (arrows, function keys) work correctly."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05, release_timeout=0.1)
+        config = DispatcherConfig(delta=0.1, release_timeout=0.1)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Simulate arrow key hold
@@ -253,7 +238,7 @@ class TestKeyEventDispatcher:
     def test_concurrent_keys(self) -> None:
         """Test handling of multiple keys pressed in sequence."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05)
+        config = DispatcherConfig(delta=0.1)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Press two different keys quickly
@@ -293,7 +278,7 @@ class TestKeyEventDispatcher:
     def test_thread_safety(self) -> None:
         """Test that dispatcher is thread-safe (basic smoke test)."""
         events: list[Any] = []
-        config = DispatcherConfig(delta=0.1, combo_window=0.05)
+        config = DispatcherConfig(delta=0.1)
         dispatcher = KeyEventDispatcher(callback=lambda e: events.append(e), config=config)
 
         # Feed multiple events rapidly

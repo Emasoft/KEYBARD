@@ -177,6 +177,13 @@ class ComboClick(Event):
     """
     Multiple keys were pressed together and all released within delta.
 
+    **FUTURE FEATURE - NOT YET IMPLEMENTED**
+
+    This event type is defined for future implementation. Currently, the
+    dispatcher does not detect simultaneous key presses as combos. Modifier
+    combinations like Ctrl+C come from the terminal parser as atomic Key
+    events (key="ctrl+c") and are handled as single keys.
+
     Represents a quick multi-key press (e.g., Ctrl+Shift+C pressed and
     released quickly).
 
@@ -197,6 +204,13 @@ class ComboClick(Event):
 class ComboKeyDown(Event):
     """
     Multiple keys pressed together, held past the delta threshold.
+
+    **FUTURE FEATURE - NOT YET IMPLEMENTED**
+
+    This event type is defined for future implementation. Currently, the
+    dispatcher does not detect simultaneous key presses as combos. Modifier
+    combinations like Ctrl+Shift+Arrow come from the terminal parser as
+    atomic Key events and are handled as single keys.
 
     Represents holding a key combination (e.g., holding Ctrl+Shift+Arrow).
 

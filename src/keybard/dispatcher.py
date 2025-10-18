@@ -11,8 +11,9 @@ The dispatcher distinguishes between:
 - CLICK: Key pressed and released within delta threshold
 - KEY DOWN: Key held past the delta threshold (emitted after delta)
 - KEY UP: Key released after a KEY DOWN
-- COMBO CLICK: Multiple keys pressed, all released within delta
-- COMBO KEY DOWN: Multiple keys pressed and held past delta
+
+Note: Modifier combinations (Ctrl+C, Shift+A, etc.) come from the terminal
+parser as atomic Key events and are handled like single keys.
 
 IMPORTANT LIMITATION:
 --------------------
@@ -70,7 +71,6 @@ class DispatcherConfig:
     """Configuration for the key event dispatcher."""
 
     delta: float = 1.0  # Time threshold for click vs hold (seconds)
-    combo_window: float = 0.1  # Max time between keys for combo detection (seconds)
     release_timeout: float = 0.15  # Time to wait for repeat to detect release (seconds)
     emit_repeats: bool = False  # Whether to emit KeyDown events on each repeat
     repeat_interval: float = 0.05  # Minimum time between repeat emissions (seconds)
@@ -79,10 +79,6 @@ class DispatcherConfig:
         """Validate configuration."""
         if self.delta <= 0:
             raise ValueError("delta must be positive")
-        if self.combo_window < 0:
-            raise ValueError("combo_window must be non-negative")
-        if self.combo_window >= self.delta:
-            raise ValueError("combo_window must be less than delta")
         if self.release_timeout <= 0:
             raise ValueError("release_timeout must be positive")
         if self.repeat_interval <= 0:
@@ -97,12 +93,13 @@ class KeyEventDispatcher:
     - KeyClick: Press + release within delta threshold
     - KeyDown: Key held past delta (emitted after waiting)
     - KeyUp: Key released after KeyDown
-    - ComboClick: Multiple keys pressed together, released within delta
-    - ComboKeyDown: Multiple keys pressed together, held past delta
 
     The dispatcher buffers events and uses timers to determine the appropriate
     event type based on timing. This allows distinguishing between quick taps
     and prolonged holds.
+
+    Modifier combinations (Ctrl+C, Shift+A, etc.) are received from the terminal
+    parser as atomic Key events (e.g., key="ctrl+c") and are treated as single keys.
 
     Args:
         callback: Function to call with timed events
