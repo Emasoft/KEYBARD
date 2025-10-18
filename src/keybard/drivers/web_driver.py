@@ -22,8 +22,7 @@ from pathlib import Path
 from threading import Event, Thread
 from typing import TYPE_CHECKING, BinaryIO, Literal, TextIO, cast
 
-from keybard import events
-from keybard import log
+from keybard import events, log
 from keybard._binary_encode import dump as binary_dump
 from keybard._xterm_parser import XTermParser
 from keybard.driver import Driver

@@ -6,7 +6,14 @@ Tests for constants module.
 Tests environment variable parsing and configuration constants.
 """
 
-from keybard.constants import ESCAPE_DELAY, SMOOTH_SCROLL, DIM_FACTOR, _get_environ_bool, _get_environ_int, _get_environ_port
+from keybard.constants import (
+    DIM_FACTOR,
+    ESCAPE_DELAY,
+    SMOOTH_SCROLL,
+    _get_environ_bool,
+    _get_environ_int,
+    _get_environ_port,
+)
 
 
 def test_constants_exist():

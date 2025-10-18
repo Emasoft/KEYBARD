@@ -11,7 +11,6 @@ requires-python = ">=3.12"
 dependencies = [
     "rich>=14.2.0",
     "typing-extensions>=4.4.0",
-    "platformdirs>=3.6.0,<5",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",

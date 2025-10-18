@@ -130,9 +130,7 @@ def dump(data: object) -> bytes:
         Returns:
             The encoded bytes.
         """
-        return b"d%se" % b"".join(
-            b"%s%s" % (encode(key), encode(value)) for key, value in datum.items()
-        )
+        return b"d%se" % b"".join(b"%s%s" % (encode(key), encode(value)) for key, value in datum.items())
 
     ENCODERS: dict[type, Callable[[Any], bytes]] = {
         type(None): encode_none,

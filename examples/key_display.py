@@ -18,15 +18,19 @@ This example displays:
 Press Ctrl+C or 'q' to quit.
 """
 
+import argparse
+import time
+from dataclasses import dataclass
+from typing import Dict
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
+
 from keybard import KeyboardReader
-from keybard.events import Key, Paste, Resize
-import time
-from dataclasses import dataclass
-from typing import Dict
+from keybard.dispatcher import DispatcherConfig
+from keybard.events import Key, KeyClick, KeyDown, KeyUp, Paste, Resize
 
 
 @dataclass
@@ -61,9 +65,7 @@ class KeyTracker:
 
             # After first repeat, return KEY-DOWN
             if state.repeat_count == 1:
-                return "CLICK"
-            elif state.repeat_count == 2:
-                return "KEY-DOWN"
+                return "KEY-DOWN"  # First repeat means key is being held
             else:
                 # Subsequent repeats - update state but don't add new event
                 return None
@@ -123,10 +125,14 @@ def parse_modifiers_and_key(key_name: str) -> tuple[str, str]:
     return ("+".join(modifiers), base_key.upper())
 
 
-def create_help_panel() -> Panel:
+def create_help_panel(use_dispatcher: bool = False) -> Panel:
     """Create a help panel showing what to try."""
     help_text = Text()
     help_text.append("KEYBARD Key State Tracker\n", style="bold cyan")
+    if use_dispatcher:
+        help_text.append("Using: KeyEventDispatcher (timing-based events)\n", style="green")
+    else:
+        help_text.append("Using: Manual key tracking (repeat-based detection)\n", style="yellow")
     help_text.append("Shows: CLICK (press), KEY-DOWN (held), KEY-UP (released)\n\n", style="dim")
 
     help_text.append("Try pressing and holding:\n", style="bold yellow")
@@ -188,34 +194,57 @@ def format_key_visual(base_key: str, modifiers: str) -> str:
 
 def main():
     """Run the key display demo."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="KEYBARD Key Display Example")
+    parser.add_argument(
+        "--use-dispatcher",
+        action="store_true",
+        help="Use KeyEventDispatcher instead of manual tracking",
+    )
+    parser.add_argument(
+        "--delta",
+        type=float,
+        default=1.0,
+        help="Delta threshold for click vs hold (seconds, default: 1.0)",
+    )
+    args = parser.parse_args()
+
     console = Console()
 
     # Display initial help
     console.clear()
-    console.print(create_help_panel())
+    console.print(create_help_panel(use_dispatcher=args.use_dispatcher))
     console.print()
 
-    # Create key tracker
-    tracker = KeyTracker(release_timeout=0.15)
+    # Create key tracker (only if not using dispatcher)
+    tracker = None if args.use_dispatcher else KeyTracker(release_timeout=0.15)
     history = []
     max_history = 20
 
-    with KeyboardReader() as reader:
+    # Setup reader with optional dispatcher
+    if args.use_dispatcher:
+        config = DispatcherConfig(delta=args.delta, release_timeout=0.15)
+        reader = KeyboardReader(use_dispatcher=True, dispatcher_config=config)
+    else:
+        reader = KeyboardReader()
+
+    with reader:
         console.print("[dim]Listening for keyboard input...[/dim]\n")
 
         while True:
             current_time = time.time()
             has_changes = False  # Track if anything changed this iteration
 
-            # Check for key releases
-            releases = tracker.check_releases(current_time)
-            if releases:
-                has_changes = True
-                for key, event_type in releases:
-                    modifiers, base_key = parse_modifiers_and_key(key)
-                    timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
-                    visual = format_key_visual(base_key, modifiers)
-                    history.append((timestamp, modifiers, base_key, event_type, visual))
+            # Check for key releases (manual tracker only)
+            if tracker:
+                releases = tracker.check_releases(current_time)
+                if releases:
+                    has_changes = True
+                    for key, event_type in releases:
+                        modifiers, base_key = parse_modifiers_and_key(key)
+                        timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # Include milliseconds
+                        visual = format_key_visual(base_key, modifiers)
+                        history.append((timestamp, modifiers, base_key, event_type, visual))
 
             # Poll for new events (non-blocking)
             events = reader.poll()
@@ -224,20 +253,47 @@ def main():
                 has_changes = True
 
             for event in events:
-                # Handle quit commands
-                if isinstance(event, Key):
+                # Handle dispatcher events (timing-based)
+                if isinstance(event, KeyClick):
+                    # Quit command
                     if event.key == "q" or event.key == "ctrl+c":
                         console.print("\n[bold green]Goodbye![/bold green]")
                         return
 
-                    # Track key state
-                    event_type = tracker.process_key(event.key, current_time)
+                    modifiers, base_key = parse_modifiers_and_key(event.key)
+                    timestamp = time.strftime("%H:%M:%S.%f")[:-3]
+                    visual = format_key_visual(base_key, modifiers)
+                    history.append((timestamp, modifiers, base_key, "CLICK", visual))
 
-                    if event_type:  # Only add if it's a new state transition
-                        modifiers, base_key = parse_modifiers_and_key(event.key)
-                        timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # milliseconds
-                        visual = format_key_visual(base_key, modifiers)
-                        history.append((timestamp, modifiers, base_key, event_type, visual))
+                elif isinstance(event, KeyDown):
+                    modifiers, base_key = parse_modifiers_and_key(event.key)
+                    timestamp = time.strftime("%H:%M:%S.%f")[:-3]
+                    visual = format_key_visual(base_key, modifiers)
+                    # Only show first KEY-DOWN, not repeats (unless you want to see them)
+                    if event.repeat_count == 0:
+                        history.append((timestamp, modifiers, base_key, "KEY-DOWN", visual))
+
+                elif isinstance(event, KeyUp):
+                    modifiers, base_key = parse_modifiers_and_key(event.key)
+                    timestamp = time.strftime("%H:%M:%S.%f")[:-3]
+                    visual = format_key_visual(base_key, modifiers)
+                    history.append((timestamp, modifiers, base_key, "KEY-UP", visual))
+
+                # Handle raw Key events (manual tracker only)
+                elif isinstance(event, Key):
+                    if event.key == "q" or event.key == "ctrl+c":
+                        console.print("\n[bold green]Goodbye![/bold green]")
+                        return
+
+                    # Track key state with manual tracker
+                    if tracker:
+                        event_type = tracker.process_key(event.key, current_time)
+
+                        if event_type:  # Only add if it's a new state transition
+                            modifiers, base_key = parse_modifiers_and_key(event.key)
+                            timestamp = time.strftime("%H:%M:%S.%f")[:-3]  # milliseconds
+                            visual = format_key_visual(base_key, modifiers)
+                            history.append((timestamp, modifiers, base_key, event_type, visual))
 
                 elif isinstance(event, Paste):
                     timestamp = time.strftime("%H:%M:%S.%f")[:-3]
@@ -276,17 +332,20 @@ def main():
 
                 # Clear and redisplay
                 console.clear()
-                console.print(create_help_panel())
+                console.print(create_help_panel(use_dispatcher=args.use_dispatcher))
                 console.print()
                 console.print(table)
                 console.print()
 
-                # Show current state
-                if tracker.keys:
-                    held_keys = ", ".join([f"[yellow]{k}[/yellow]" for k in tracker.keys.keys()])
-                    console.print(f"[dim]Currently held: {held_keys}[/dim]")
+                # Show current state (manual tracker only)
+                if tracker:
+                    if tracker.keys:
+                        held_keys = ", ".join([f"[yellow]{k}[/yellow]" for k in tracker.keys.keys()])
+                        console.print(f"[dim]Currently held: {held_keys}[/dim]")
+                    else:
+                        console.print("[dim]No keys currently held[/dim]")
                 else:
-                    console.print("[dim]No keys currently held[/dim]")
+                    console.print("[dim]Using KeyEventDispatcher for timing-based events[/dim]")
 
             # Small delay to avoid busy-waiting
             time.sleep(0.01)

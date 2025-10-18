@@ -104,3 +104,110 @@ class CursorPosition(Event):
 
     x: int
     y: int
+
+
+# =============================================================================
+# Timing-based keyboard events
+# =============================================================================
+
+
+@dataclass
+class KeyClick(Event):
+    """
+    Key was pressed and released within the configured delta threshold.
+
+    This indicates a quick press-and-release action (default: < 1 second).
+
+    Attributes:
+        key: Normalized key name (e.g., "ctrl+c", "a", "escape")
+        character: Original character if single printable character
+        duration: Time in seconds between press and release
+    """
+
+    key: str
+    character: str | None = None
+    duration: float = 0.0
+
+
+@dataclass
+class KeyDown(Event):
+    """
+    Key has been held down for longer than the delta threshold.
+
+    This event is emitted AFTER the delta time has passed while the key
+    is still being held. It indicates the user is holding the key.
+
+    When emit_repeats is enabled in DispatcherConfig, this event is also
+    emitted on each key repeat during the hold.
+
+    Attributes:
+        key: Normalized key name
+        character: Original character if single printable character
+        hold_time: Time in seconds the key has been held when event was emitted
+        repeat_count: Number of repeats received (0 for initial KeyDown, >0 for repeats)
+    """
+
+    key: str
+    character: str | None = None
+    hold_time: float = 0.0
+    repeat_count: int = 0
+
+
+@dataclass
+class KeyUp(Event):
+    """
+    Key was released after a KeyDown event.
+
+    This is only emitted for keys that were held long enough to trigger
+    a KeyDown event. Quick press-release cycles emit KeyClick instead.
+
+    Attributes:
+        key: Normalized key name
+        character: Original character if single printable character
+        total_duration: Total time in seconds the key was held
+    """
+
+    key: str
+    character: str | None = None
+    total_duration: float = 0.0
+
+
+@dataclass
+class ComboClick(Event):
+    """
+    Multiple keys were pressed together and all released within delta.
+
+    Represents a quick multi-key press (e.g., Ctrl+Shift+C pressed and
+    released quickly).
+
+    Attributes:
+        keys: List of key names in the combo, sorted
+        primary_key: The last key pressed (usually the non-modifier)
+        character: Original character if applicable
+        duration: Time in seconds from first press to last release
+    """
+
+    keys: list[str]
+    primary_key: str
+    character: str | None = None
+    duration: float = 0.0
+
+
+@dataclass
+class ComboKeyDown(Event):
+    """
+    Multiple keys pressed together, held past the delta threshold.
+
+    Represents holding a key combination (e.g., holding Ctrl+Shift+Arrow).
+
+    Attributes:
+        keys: List of key names in the combo, sorted
+        primary_key: The last key pressed (usually the non-modifier)
+        character: Original character if applicable
+        hold_time: Time in seconds since first key press
+    """
+
+    keys: list[str]
+    primary_key: str
+    character: str | None = None
+    hold_time: float = 0.0

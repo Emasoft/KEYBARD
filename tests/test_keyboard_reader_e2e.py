@@ -12,7 +12,6 @@ import pytest
 from keybard import KeyboardReader
 from keybard.events import Key
 
-
 # ANSI escape sequences for arrow keys
 ARROW_KEY_SEQUENCES = {
     "up": "\x1b[A",

@@ -27,6 +27,7 @@ import sys
 from threading import Event as ThreadEvent
 from typing import Callable, Literal
 
+from keybard.dispatcher import DispatcherConfig, KeyEventDispatcher
 from keybard.driver import Driver
 from keybard.events import Event
 from keybard.geometry import Size
@@ -51,6 +52,8 @@ class KeyboardReader:
                 If None, auto-detects based on platform.
         size: Override terminal size detection (width, height)
         callback: Optional callback function called for each event
+        use_dispatcher: Enable timing-based event model (KeyClick/KeyDown/KeyUp)
+        dispatcher_config: Configuration for timing thresholds (requires use_dispatcher=True)
 
     Example:
         Simple blocking read:
@@ -90,12 +93,24 @@ class KeyboardReader:
         driver: Literal["linux", "windows", "headless", "web"] | None = None,
         size: tuple[int, int] | None = None,
         callback: Callable[[Event], None] | None = None,
+        use_dispatcher: bool = False,
+        dispatcher_config: DispatcherConfig | None = None,
     ):
         """Initialize the keyboard reader."""
         self.debug = debug
+        self._use_dispatcher = use_dispatcher
         self._callback = callback
         self._queue: queue.Queue[Event] = queue.Queue()
         self._running = ThreadEvent()
+
+        # Setup dispatcher if enabled
+        self._dispatcher: KeyEventDispatcher | None
+        if self._use_dispatcher:
+            # Create dispatcher that feeds into our queue/callback
+            self._dispatcher = KeyEventDispatcher(callback=self._dispatch_event, config=dispatcher_config)
+        else:
+            self._dispatcher = None
+
         self._driver = self._create_driver(driver, size)
 
     def _create_driver(
@@ -142,6 +157,19 @@ class KeyboardReader:
         else:
             raise ValueError(f"Unknown driver: {driver_name}")
 
+    def _dispatch_event(self, event: Event) -> None:
+        """
+        Internal: dispatch event to queue and callback.
+
+        This is called by the dispatcher (if enabled) or directly by _handle_message.
+
+        Args:
+            event: Event to dispatch (timed or raw)
+        """
+        self._queue.put(event)
+        if self._callback:
+            self._callback(event)
+
     def _handle_message(self, message: Message) -> None:
         """
         Internal: handle message from driver (sync mode).
@@ -151,9 +179,12 @@ class KeyboardReader:
         """
         # KEYBARD is keyboard-only - no mouse events exist to filter
         if isinstance(message, Event):
-            self._queue.put(message)
-            if self._callback:
-                self._callback(message)
+            if self._dispatcher:
+                # Route through dispatcher for timing-based events
+                self._dispatcher.feed(message)
+            else:
+                # Direct dispatch (original behavior)
+                self._dispatch_event(message)
 
     async def _post_message(self, message: Message) -> None:
         """
@@ -167,9 +198,12 @@ class KeyboardReader:
         # KEYBARD is keyboard-only - no mouse events exist to filter
         # In async mode, still use the queue but called from async context
         if isinstance(message, Event):
-            self._queue.put(message)
-            if self._callback:
-                self._callback(message)
+            if self._dispatcher:
+                # Route through dispatcher for timing-based events
+                self._dispatcher.feed(message)
+            else:
+                # Direct dispatch (original behavior)
+                self._dispatch_event(message)
 
     def __enter__(self) -> KeyboardReader:
         """
@@ -193,6 +227,8 @@ class KeyboardReader:
     def stop(self) -> None:
         """Stop reading and restore terminal to normal mode."""
         self._running.clear()
+        if self._dispatcher:
+            self._dispatcher.stop()
         self._driver.stop_application_mode()
         self._driver.close()
 

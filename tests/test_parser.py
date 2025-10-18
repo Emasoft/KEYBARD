@@ -12,7 +12,7 @@ from typing import Generator
 
 import pytest
 
-from keybard._parser import ParseEOF, ParseError, ParseTimeout, Parser, Peek1, Read1
+from keybard._parser import ParseEOF, ParseError, Parser, ParseTimeout, Peek1, Read1
 
 
 class SimpleTokenParser(Parser[str]):

@@ -305,6 +305,134 @@ with reader:
 
 ---
 
+## Timing-Based Event Model
+
+KEYBARD v0.2.0+ includes an optional **timing-based event dispatcher** that transforms raw key events into higher-level events based on how long keys are held:
+
+### Event Types
+
+- **KeyClick**: Key pressed and released quickly (within delta threshold, default 1s)
+- **KeyDown**: Key held beyond the delta threshold (emitted after waiting)
+- **KeyUp**: Key released after a KeyDown event
+
+This model allows you to distinguish between quick taps and prolonged holds, enabling different behaviors for short vs long key presses.
+
+### Why Use This?
+
+The timing-based model is useful when you want to:
+- Trigger different actions for quick taps vs holding a key
+- Implement vim-style holds (e.g., hold 'j' to scroll continuously)
+- Create responsive UIs that react to hold duration
+- Detect when users intentionally hold keys vs accidentally tap them
+
+### Basic Usage
+
+Enable the dispatcher when creating a KeyboardReader:
+
+```python
+from keybard import KeyboardReader
+from keybard.dispatcher import DispatcherConfig
+from keybard.events import KeyClick, KeyDown, KeyUp
+
+# Configure timing thresholds
+config = DispatcherConfig(
+    delta=1.0,              # Click vs hold threshold (seconds)
+    release_timeout=0.15,   # Time to wait for repeat to detect release
+    emit_repeats=False,     # Whether to emit KeyDown on each repeat
+)
+
+with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
+    while True:
+        event = reader.read_key()
+
+        if isinstance(event, KeyClick):
+            print(f"Quick tap: {event.key} (duration: {event.duration:.2f}s)")
+
+        elif isinstance(event, KeyDown):
+            print(f"Holding: {event.key} (hold_time: {event.hold_time:.2f}s)")
+
+        elif isinstance(event, KeyUp):
+            print(f"Released: {event.key} (total: {event.total_duration:.2f}s)")
+```
+
+### Configuration Options
+
+The `DispatcherConfig` class allows you to customize timing behavior:
+
+```python
+from keybard.dispatcher import DispatcherConfig
+
+config = DispatcherConfig(
+    delta=1.0,              # Time threshold for click vs hold (default: 1.0s)
+    combo_window=0.1,       # Max time between keys for combos (default: 0.1s)
+    release_timeout=0.15,   # Time to detect key release (default: 0.15s)
+    emit_repeats=False,     # Emit KeyDown on each repeat (default: False)
+    repeat_interval=0.05,   # Min time between repeat emissions (default: 0.05s)
+)
+```
+
+### Example: Different Actions for Click vs Hold
+
+```python
+from keybard import KeyboardReader
+from keybard.dispatcher import DispatcherConfig
+from keybard.events import KeyClick, KeyDown, KeyUp
+
+config = DispatcherConfig(delta=0.5)  # 0.5 second threshold
+
+with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
+    while True:
+        event = reader.read_key()
+
+        if isinstance(event, KeyClick) and event.key == "space":
+            print("Quick tap: Jump!")
+
+        elif isinstance(event, KeyDown) and event.key == "space":
+            print("Holding space: Charging jump...")
+
+        elif isinstance(event, KeyUp) and event.key == "space":
+            print(f"Released: Super jump! (charged for {event.total_duration:.1f}s)")
+
+        elif isinstance(event, KeyClick) and event.key == "q":
+            break
+```
+
+### Repeat Events
+
+When `emit_repeats=True`, the dispatcher emits additional `KeyDown` events on each key repeat during a hold:
+
+```python
+config = DispatcherConfig(delta=0.5, emit_repeats=True, repeat_interval=0.1)
+
+with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
+    while True:
+        event = reader.read_key()
+
+        if isinstance(event, KeyDown):
+            if event.repeat_count == 0:
+                print(f"Started holding: {event.key}")
+            else:
+                print(f"Still holding: {event.key} (repeat #{event.repeat_count})")
+```
+
+### Compatibility
+
+The timing-based dispatcher is **optional** and **fully backward compatible**:
+
+- **Without dispatcher** (default): You receive raw `Key` events immediately
+- **With dispatcher**: You receive `KeyClick`, `KeyDown`, `KeyUp` events based on timing
+
+Non-key events (Paste, Resize, etc.) are always passed through unchanged.
+
+### Examples
+
+See these examples for practical demonstrations:
+
+- `examples/timed_keys.py` - Comprehensive timing-based events demo
+- `examples/key_display.py --use-dispatcher` - Key display with dispatcher option
+
+---
+
 ## Examples
 
 The `examples/` directory contains working demonstrations:
@@ -350,7 +478,10 @@ Quick reference:
   - `terminal_size`: Get current terminal dimensions
 
 - **Event Types**:
-  - `Key`: Keyboard key press (`.key` attribute)
+  - `Key`: Keyboard key press (`.key` attribute) - default mode
+  - `KeyClick`: Quick key press/release (`.key`, `.duration`) - timing mode
+  - `KeyDown`: Key held past threshold (`.key`, `.hold_time`, `.repeat_count`) - timing mode
+  - `KeyUp`: Key released after hold (`.key`, `.total_duration`) - timing mode
   - `Paste`: Pasted text (`.text` attribute)
   - `Resize`: Terminal resized (`.size` attribute)
   - `AppFocus`/`AppBlur`: Terminal focus events
@@ -372,7 +503,7 @@ uv run pytest --cov=keybard --cov-report=term-missing
 uv run pytest tests/test_xterm_parser.py -v
 ```
 
-**Test Status**: ✅ 322 passed, 2 skipped
+**Test Status**: ✅ 339 passed, 2 skipped (includes timing dispatcher tests)
 
 ---
 

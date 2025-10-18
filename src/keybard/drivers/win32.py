@@ -176,9 +176,7 @@ def enable_application_mode() -> Callable[[], None]:
         set_console_mode(terminal_in, current_console_mode_in)
         set_console_mode(terminal_out, current_console_mode_out)
 
-    set_console_mode(
-        terminal_out, current_console_mode_out | ENABLE_VIRTUAL_TERMINAL_PROCESSING
-    )
+    set_console_mode(terminal_out, current_console_mode_out | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
     set_console_mode(terminal_in, ENABLE_VIRTUAL_TERMINAL_INPUT)
     return restore
 
@@ -202,9 +200,7 @@ def wait_for_handles(handles: List[HANDLE], timeout: int = -1) -> Optional[HANDL
     arrtype = HANDLE * len(handles)
     handle_array = arrtype(*handles)
 
-    ret: int = KERNEL32.WaitForMultipleObjects(
-        len(handle_array), handle_array, BOOL(False), DWORD(timeout)
-    )
+    ret: int = KERNEL32.WaitForMultipleObjects(len(handle_array), handle_array, BOOL(False), DWORD(timeout))
 
     if ret == WAIT_TIMEOUT:
         return None
@@ -230,9 +226,7 @@ class EventMonitor(threading.Thread):
         exit_requested = self.exit_event.is_set
         # Note: constants.DEBUG is a module attribute check (may not exist), but fail-fast approach
         # means we let the AttributeError propagate rather than using hasattr/getattr
-        parser = XTermParser(
-            debug=False
-        )  # Use False instead of potentially missing constants.DEBUG
+        parser = XTermParser(debug=False)  # Use False instead of potentially missing constants.DEBUG
 
         try:
             read_count = wintypes.DWORD(0)
@@ -258,9 +252,7 @@ class EventMonitor(threading.Thread):
                     continue
 
                 # Get new events
-                ReadConsoleInputW(
-                    hIn, byref(input_records), MAX_EVENTS, byref(read_count)
-                )
+                ReadConsoleInputW(hIn, byref(input_records), MAX_EVENTS, byref(read_count))
                 read_input_records = input_records[: read_count.value]
 
                 del keys[:]
@@ -274,10 +266,7 @@ class EventMonitor(threading.Thread):
                         key_event = input_record.Event.KeyEvent
                         key = key_event.uChar.UnicodeChar
                         if key_event.bKeyDown:
-                            if (
-                                key_event.dwControlKeyState
-                                and key_event.wVirtualKeyCode == 0
-                            ):
+                            if key_event.dwControlKeyState and key_event.wVirtualKeyCode == 0:
                                 continue
                             append_key(key)
                     elif event_type == WINDOW_BUFFER_SIZE_EVENT:
@@ -290,9 +279,7 @@ class EventMonitor(threading.Thread):
                     #
                     # https://github.com/Keybardize/keybard/issues/3178 has
                     # the context for the encode/decode here.
-                    for event in parser.feed(
-                        "".join(keys).encode("utf-16", "surrogatepass").decode("utf-16")
-                    ):
+                    for event in parser.feed("".join(keys).encode("utf-16", "surrogatepass").decode("utf-16")):
                         self.process_event(event)
                 if new_size is not None:
                     # Process changed size

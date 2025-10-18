@@ -217,9 +217,7 @@ class LinuxDriver(Driver):
                 # of spinning up application mode again and then finding
                 # out, we perform a no-consequence change and detect the
                 # problem right away.
-                termios.tcsetattr(
-                    self.fileno, termios.TCSANOW, termios.tcgetattr(self.fileno)
-                )
+                termios.tcsetattr(self.fileno, termios.TCSANOW, termios.tcgetattr(self.fileno))
             except termios.error:
                 # There was an error doing the tcsetattr; there is no sense
                 # in carrying on because we'll be doing a SIGSTOP (see

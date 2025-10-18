@@ -13,7 +13,15 @@ from rich.style import Style
 from rich.terminal_theme import MONOKAI
 
 from keybard.color import Color
-from keybard.filter import ANSIToTruecolor, LineFilter, Monochrome, NoColor, dim_color, dim_style, monochrome_style
+from keybard.filter import (
+    ANSIToTruecolor,
+    LineFilter,
+    Monochrome,
+    NoColor,
+    dim_color,
+    dim_style,
+    monochrome_style,
+)
 
 
 class TestLineFilter:

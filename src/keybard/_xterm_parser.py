@@ -19,9 +19,7 @@ from keybard.message import Message
 _MAX_SEQUENCE_SEARCH_THRESHOLD = 32
 
 _re_mouse_event = re.compile("^" + re.escape("\x1b[") + r"(<?[-\d;]+[mM]|M...)\Z")
-_re_terminal_mode_response = re.compile(
-    "^" + re.escape("\x1b[") + r"\?(?P<mode_id>\d+);(?P<setting_parameter>\d)\$y"
-)
+_re_terminal_mode_response = re.compile("^" + re.escape("\x1b[") + r"\?(?P<mode_id>\d+);(?P<setting_parameter>\d)\$y")
 
 _re_cursor_position = re.compile(r"\x1b\[(?P<row>\d+);(?P<col>\d+)R")
 
@@ -38,15 +36,10 @@ SPECIAL_SEQUENCES = {BRACKETED_PASTE_START, BRACKETED_PASTE_END, FOCUSIN, FOCUSO
 """Set of special sequences."""
 
 _re_extended_key: Final = re.compile(r"\x1b\[(?:(\d+)(?:;(\d+))?)?([u~ABCDEFHPQRS])")
-_re_in_band_window_resize: Final = re.compile(
-    r"\x1b\[48;(\d+(?:\:.*?)?);(\d+(?:\:.*?)?);(\d+(?:\:.*?)?);(\d+(?:\:.*?)?)t"
-)
+_re_in_band_window_resize: Final = re.compile(r"\x1b\[48;(\d+(?:\:.*?)?);(\d+(?:\:.*?)?);(\d+(?:\:.*?)?);(\d+(?:\:.*?)?)t")
 
 
-IS_ITERM = (
-    os.environ.get("LC_TERMINAL", "") == "iTerm2"
-    or os.environ.get("TERM_PROGRAM", "") == "iTerm.app"
-)
+IS_ITERM = os.environ.get("LC_TERMINAL", "") == "iTerm2" or os.environ.get("TERM_PROGRAM", "") == "iTerm.app"
 
 
 class XTermParser(Parser[Message]):
@@ -88,9 +81,7 @@ class XTermParser(Parser[Message]):
         # This code is preserved from Textual but mouse event classes don't exist
         return None
 
-    def parse(
-        self, token_callback: TokenCallback[Message]
-    ) -> Generator[Read1 | Peek1, str, None]:
+    def parse(self, token_callback: TokenCallback[Message]) -> Generator[Read1 | Peek1, str, None]:
         ESC = "\x1b"
         read1 = self.read1
         sequence_to_key_events = self._sequence_to_key_events
@@ -204,9 +195,7 @@ class XTermParser(Parser[Message]):
                         bracketed_paste = False
                     break
                 if match := _re_in_band_window_resize.fullmatch(sequence):
-                    height, width, pixel_height, pixel_width = [
-                        group.partition(":")[0] for group in match.groups()
-                    ]
+                    height, width, pixel_height, pixel_width = [group.partition(":")[0] for group in match.groups()]
                     resize_event = events.Resize.from_dimensions(
                         (int(width), int(height)),
                         (int(pixel_width), int(pixel_height)),
@@ -251,17 +240,9 @@ class XTermParser(Parser[Message]):
                         setting_parameter = int(mode_report_match["setting_parameter"])
                         if mode_id == "2026" and setting_parameter > 0:
                             on_token(messages.TerminalSupportsSynchronizedOutput())
-                        elif (
-                            mode_id == "2048"
-                            and constants.SMOOTH_SCROLL
-                            and not IS_ITERM
-                        ):
+                        elif mode_id == "2048" and constants.SMOOTH_SCROLL and not IS_ITERM:
                             # TODO: iTerm is buggy in one or more of the protocols required here
-                            in_band_event = (
-                                messages.InBandWindowResize.from_setting_parameter(
-                                    setting_parameter
-                                )
-                            )
+                            in_band_event = messages.InBandWindowResize.from_setting_parameter(setting_parameter)
                             on_token(in_band_event)
                         break
 
@@ -299,9 +280,7 @@ class XTermParser(Parser[Message]):
 
             key_tokens.sort()
             key_tokens.append(key)
-            yield events.Key(
-                "+".join(key_tokens), sequence if len(sequence) == 1 else None
-            )
+            yield events.Key("+".join(key_tokens), sequence if len(sequence) == 1 else None)
             return
 
         keys = ANSI_SEQUENCES_KEYS.get(sequence)

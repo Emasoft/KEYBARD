@@ -50,9 +50,7 @@ async def check_sleeps() -> None:
         sleep_time = 1 / t
         elapsed = await profile_sleep(sleep_time)
         difference = (elapsed / sleep_time * 100) - 100
-        print(
-            f"sleep={sleep_time * 1000:.01f}ms clock={elapsed * 1000:.01f}ms diff={difference:.02f}%"
-        )
+        print(f"sleep={sleep_time * 1000:.01f}ms clock={elapsed * 1000:.01f}ms diff={difference:.02f}%")
 
 
 # Execute the check_sleeps function when this module is run as a script

@@ -25,51 +25,19 @@ Example:
 from __future__ import annotations
 
 # =============================================================================
-# Core API - KeyboardReader is the primary entry point
+# High-level tools - Simple APIs for common tasks
 # =============================================================================
-from keybard.reader import KeyboardReader
-
-# =============================================================================
-# Event classes for type hints and event handling
-# =============================================================================
-from keybard.events import (
-    AppBlur,
-    AppFocus,
-    Event,
-    Key,
-    Paste,
-    Resize,
-)
-
-# =============================================================================
-# Geometry types for terminal size and regions
-# =============================================================================
-from keybard.geometry import (
-    Offset,
-    Region,
-    Size,
-    Spacing,
-    clamp,
-)
-
-# =============================================================================
-# Keys enum and key manipulation functions
-# =============================================================================
-from keybard.keys import (
-    Keys,
-    format_key,
-    key_to_character,
-)
+from keybard import tools
 
 # =============================================================================
 # Color support
 # =============================================================================
 from keybard.color import (
+    HSL,
+    HSV,
     Color,
     ColorParseError,
     Gradient,
-    HSL,
-    HSV,
     Lab,
     lab_to_rgb,
     rgb_to_lab,
@@ -78,16 +46,44 @@ from keybard.color import (
 # =============================================================================
 # Constants and configuration
 # =============================================================================
-from keybard.constants import (
-    DIM_FACTOR,
-    ESCAPE_DELAY,
-    SMOOTH_SCROLL,
+from keybard.constants import DIM_FACTOR, ESCAPE_DELAY, SMOOTH_SCROLL
+
+# =============================================================================
+# Key event dispatcher for timing-based events
+# =============================================================================
+from keybard.dispatcher import DispatcherConfig, KeyEventDispatcher
+
+# =============================================================================
+# Event classes for type hints and event handling
+# =============================================================================
+from keybard.events import (
+    AppBlur,
+    AppFocus,
+    ComboClick,
+    ComboKeyDown,
+    Event,
+    Key,
+    KeyClick,
+    KeyDown,
+    KeyUp,
+    Paste,
+    Resize,
 )
 
 # =============================================================================
-# High-level tools - Simple APIs for common tasks
+# Geometry types for terminal size and regions
 # =============================================================================
-from keybard import tools
+from keybard.geometry import Offset, Region, Size, Spacing, clamp
+
+# =============================================================================
+# Keys enum and key manipulation functions
+# =============================================================================
+from keybard.keys import Keys, format_key, key_to_character
+
+# =============================================================================
+# Core API - KeyboardReader is the primary entry point
+# =============================================================================
+from keybard.reader import KeyboardReader
 
 __all__ = [
     # -------------------------------------------------------------------------
@@ -103,6 +99,19 @@ __all__ = [
     "Resize",
     "AppFocus",
     "AppBlur",
+    # -------------------------------------------------------------------------
+    # Timing-based event types
+    # -------------------------------------------------------------------------
+    "KeyClick",
+    "KeyDown",
+    "KeyUp",
+    "ComboClick",
+    "ComboKeyDown",
+    # -------------------------------------------------------------------------
+    # Key event dispatcher
+    # -------------------------------------------------------------------------
+    "KeyEventDispatcher",
+    "DispatcherConfig",
     # -------------------------------------------------------------------------
     # Geometry types
     # -------------------------------------------------------------------------

@@ -10,7 +10,7 @@ except ImportError:
     from typing_extensions import Self
 
 if sys.version_info >= (3, 12):
-    from functools import cached_property
+    pass
 else:
     # based on the code from Python 3.14:
     # https://github.com/python/cpython/blob/
