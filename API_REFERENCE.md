@@ -31,6 +31,8 @@ def __init__(
     driver: str | None = None,
     size: tuple[int, int] | None = None,
     callback: Callable[[Event], None] | None = None,
+    use_dispatcher: bool = False,
+    dispatcher_config: DispatcherConfig | None = None,
 ) -> None:
 ```
 
@@ -40,6 +42,8 @@ def __init__(
 - `driver` (str | None): Force specific driver ("linux", "windows", "headless", "web"). Default: auto-detect
 - `size` (tuple[int, int] | None): Override terminal size detection (width, height). Default: auto-detect
 - `callback` (Callable | None): Callback function called for each event. Default: `None`
+- `use_dispatcher` (bool): Enable timing-based event dispatcher. Default: `False`
+- `dispatcher_config` (DispatcherConfig | None): Configuration for dispatcher. Default: `None` (uses defaults)
 
 **Example**:
 
@@ -245,6 +249,141 @@ if isinstance(event, Key):
         text += event.character
 ```
 
+
+### Timing-Based Keyboard Events
+
+**Available when using the dispatcher** (set `use_dispatcher=True` in KeyboardReader).
+
+The timing-based event model transforms raw `Key` events into higher-level events based on timing and key repetition behavior. This allows distinguishing between quick taps and prolonged holds.
+
+See [README.md - Timing-Based Event Model](README.md#timing-based-event-model) for usage examples and limitations.
+
+---
+
+### KeyClick
+
+Key was pressed and released quickly (within delta threshold).
+
+```python
+class KeyClick(Event):
+    """Quick key press and release."""
+    key: str              # Normalized key name
+    character: str | None # Original character if printable
+    duration: float       # Time between press and release (seconds)
+```
+
+**Attributes**:
+
+- `key` (str): Normalized key name
+- `character` (str | None): Original character if printable
+- `duration` (float): Time in seconds between press and release
+
+**Example**:
+
+```python
+if isinstance(event, KeyClick):
+    if event.key == "space":
+        print("Quick tap: Jump!")
+```
+
+---
+
+### KeyDown
+
+Key has been held down past the delta threshold.
+
+```python
+class KeyDown(Event):
+    """Key held past threshold."""
+    key: str              # Normalized key name
+    character: str | None # Original character if printable
+    hold_time: float      # Time key has been held (seconds)
+    repeat_count: int     # Number of repeats (0 for initial, >0 for repeats)
+```
+
+**Attributes**:
+
+- `key` (str): Normalized key name
+- `character` (str | None): Original character if printable
+- `hold_time` (float): Time in seconds the key has been held
+- `repeat_count` (int): Number of repeats received (0 for initial KeyDown)
+
+**Example**:
+
+```python
+if isinstance(event, KeyDown):
+    if event.key == "space" and event.repeat_count == 0:
+        print("Holding space: Charging jump...")
+```
+
+---
+
+### KeyUp
+
+Key was released after a KeyDown event.
+
+```python
+class KeyUp(Event):
+    """Key released after being held."""
+    key: str               # Normalized key name
+    character: str | None  # Original character if printable
+    total_duration: float  # Total time key was held (seconds)
+```
+
+**Attributes**:
+
+- `key` (str): Normalized key name
+- `character` (str | None): Original character if printable
+- `total_duration` (float): Total time in seconds the key was held
+
+**Example**:
+
+```python
+if isinstance(event, KeyUp):
+    if event.key == "space":
+        print(f"Released: Super jump! (charged for {event.total_duration:.1f}s)")
+```
+
+---
+
+### ComboClick
+
+**FUTURE FEATURE - NOT YET IMPLEMENTED**
+
+Multiple keys pressed together and all released quickly.
+
+```python
+class ComboClick(Event):
+    """Quick multi-key press (future feature)."""
+    keys: list[str]        # List of key names in the combo
+    primary_key: str       # Last key pressed (usually non-modifier)
+    character: str | None  # Original character if applicable
+    duration: float        # Time from first press to last release
+```
+
+**Status**: Event type defined but not currently emitted by dispatcher. Modifier combinations (Ctrl+C, etc.) come from the terminal parser as atomic Key events.
+
+---
+
+### ComboKeyDown
+
+**FUTURE FEATURE - NOT YET IMPLEMENTED**
+
+Multiple keys pressed together and held past delta.
+
+```python
+class ComboKeyDown(Event):
+    """Multi-key hold (future feature)."""
+    keys: list[str]        # List of key names in the combo
+    primary_key: str       # Last key pressed (usually non-modifier)
+    character: str | None  # Original character if applicable
+    hold_time: float       # Time since first key press
+```
+
+**Status**: Event type defined but not currently emitted by dispatcher. Modifier combinations come from the terminal parser as atomic Key events.
+
+---
+
 ---
 
 ### Paste
@@ -357,6 +496,47 @@ class Size:
 **Example**:
 
 ```python
+---
+
+### DispatcherConfig
+
+Configuration for the timing-based event dispatcher.
+
+```python
+class DispatcherConfig:
+    """Configuration for KeyEventDispatcher."""
+    delta: float = 1.0              # Time threshold for click vs hold (seconds)
+    release_timeout: float = 0.15   # Time to wait for repeat to detect release (seconds)
+    emit_repeats: bool = False      # Whether to emit KeyDown on each repeat
+    repeat_interval: float = 0.05   # Min time between repeat emissions (seconds)
+```
+
+**Attributes**:
+
+- `delta` (float): Time threshold to distinguish click from hold. Default: 1.0 seconds
+- `release_timeout` (float): Time to wait for key repeat before inferring release. Default: 0.15 seconds
+- `emit_repeats` (bool): Whether to emit additional KeyDown events on each key repeat. Default: False
+- `repeat_interval` (float): Minimum time between repeat event emissions (when `emit_repeats=True`). Default: 0.05 seconds
+
+**Example**:
+
+```python
+from keybard import KeyboardReader
+from keybard.dispatcher import DispatcherConfig
+
+config = DispatcherConfig(
+    delta=0.5,           # 500ms threshold
+    emit_repeats=True,   # Emit on each repeat
+    repeat_interval=0.1  # 100ms between repeats
+)
+
+with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
+    # Use timing-based events
+    pass
+```
+
+**See Also**: [README.md - Timing-Based Event Model](README.md#timing-based-event-model) for usage examples.
+
 size = reader.terminal_size
 if size:
     cells = size.width * size.height
