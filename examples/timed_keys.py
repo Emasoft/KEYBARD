@@ -32,14 +32,7 @@ from rich.table import Table
 from rich.text import Text
 
 from keybard import DispatcherConfig, KeyboardReader
-from keybard.events import (
-    Key,
-    KeyClick,
-    KeyDown,
-    KeyUp,
-    Paste,
-    Resize,
-)
+from keybard.events import Key, KeyClick, KeyDown, KeyUp, Paste, Resize
 
 
 def create_help_panel(delta: float) -> Panel:
