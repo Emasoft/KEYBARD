@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from asyncio import Future, get_running_loop
+from asyncio import Future, get_running_loop, run
 from threading import Event, Thread
 from time import perf_counter, sleep
 
@@ -12,11 +12,11 @@ class Sleeper(Thread):
         self._exit = False
         self._sleep_time = 0.0
         self._event = Event()
-        self.future: Future | None = None
+        self.future: Future[None] | None = None
         self._loop = get_running_loop()
         super().__init__(daemon=True)
 
-    def run(self):
+    def run(self) -> None:
         while True:
             self._event.wait()
             if self._exit:
@@ -51,10 +51,9 @@ async def check_sleeps() -> None:
         elapsed = await profile_sleep(sleep_time)
         difference = (elapsed / sleep_time * 100) - 100
         print(
-            f"sleep={sleep_time*1000:.01f}ms clock={elapsed*1000:.01f}ms diff={difference:.02f}%"
+            f"sleep={sleep_time * 1000:.01f}ms clock={elapsed * 1000:.01f}ms diff={difference:.02f}%"
         )
 
 
-from asyncio import run
-
+# Execute the check_sleeps function when this module is run as a script
 run(check_sleeps())

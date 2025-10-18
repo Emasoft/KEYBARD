@@ -6,12 +6,12 @@ from typing import Any, Generator, Iterable
 
 from typing_extensions import Final
 
-from textual import constants, events, messages
-from textual._ansi_sequences import ANSI_SEQUENCES_KEYS, IGNORE_SEQUENCE
-from textual._keyboard_protocol import FUNCTIONAL_KEYS
-from textual._parser import ParseEOF, Parser, ParseTimeout, Peek1, Read1, TokenCallback
-from textual.keys import KEY_NAME_REPLACEMENTS, Keys, _character_to_key
-from textual.message import Message
+from keybard import constants, events, messages
+from keybard._ansi_sequences import ANSI_SEQUENCES_KEYS, IGNORE_SEQUENCE
+from keybard._keyboard_protocol import FUNCTIONAL_KEYS
+from keybard._parser import ParseEOF, Parser, ParseTimeout, Peek1, Read1, TokenCallback
+from keybard.keys import KEY_NAME_REPLACEMENTS, Keys, _character_to_key
+from keybard.message import Message
 
 # When trying to determine whether the current sequence is a supported/valid
 # escape sequence, at which length should we give up and consider our search
@@ -72,68 +72,24 @@ class XTermParser(Parser[Message]):
         return super().feed(data)
 
     def parse_mouse_code(self, code: str) -> Message | None:
-        sgr_match = self._re_sgr_mouse.match(code)
-        if sgr_match:
-            _buttons, _x, _y, state = sgr_match.groups()
-            buttons = int(_buttons)
-            x = float(int(_x) - 1)
-            y = float(int(_y) - 1)
-            if x < 0 or y < 0:
-                # TODO: Workaround for Ghostty erroneous negative coordinate bug
-                return None
-            if (
-                self.mouse_pixels
-                and self.terminal_pixel_size is not None
-                and self.terminal_size is not None
-            ):
-                pixel_width, pixel_height = self.terminal_pixel_size
-                width, height = self.terminal_size
-                x_ratio = pixel_width / width
-                y_ratio = pixel_height / height
-                x /= x_ratio
-                y /= y_ratio
+        """Parse mouse code (always returns None - KEYBARD is keyboard-only).
 
-            delta_x = int(x) - int(self.last_x)
-            delta_y = int(y) - int(self.last_y)
-            self.last_x = x
-            self.last_y = y
-            event_class: type[events.MouseEvent]
+        This method is preserved from Textual framework for infrastructure compatibility,
+        but mouse events are not supported in KEYBARD.
 
-            if buttons & 64:
-                event_class = [
-                    events.MouseScrollUp,
-                    events.MouseScrollDown,
-                    events.MouseScrollLeft,
-                    events.MouseScrollRight,
-                ][buttons & 3]
-                button = 0
-            else:
-                button = (buttons + 1) & 3
-                # XTerm events for mouse movement can look like mouse button down events. But if there is no key pressed,
-                # it's a mouse move event.
-                if buttons & 32 or button == 0:
-                    event_class = events.MouseMove
-                else:
-                    event_class = events.MouseDown if state == "M" else events.MouseUp
+        Args:
+            code: Mouse event code from terminal
 
-            event = event_class(
-                None,
-                x,
-                y,
-                delta_x,
-                delta_y,
-                button,
-                bool(buttons & 4),
-                bool(buttons & 8),
-                bool(buttons & 16),
-                screen_x=x,
-                screen_y=y,
-            )
-            return event
+        Returns:
+            None - mouse events are disabled
+        """
+        # KEYBARD is keyboard-only: Mouse events are not supported
+        # The parser infrastructure remains but returns None for mouse events
+        # This code is preserved from Textual but mouse event classes don't exist
         return None
 
     def parse(
-        self, token_callback: TokenCallback
+        self, token_callback: TokenCallback[Message]
     ) -> Generator[Read1 | Peek1, str, None]:
         ESC = "\x1b"
         read1 = self.read1
@@ -187,7 +143,7 @@ class XTermParser(Parser[Message]):
                 # ESC from the closing bracket, since at that point we didn't know what
                 # the full escape code was.
                 pasted_text = "".join(paste_buffer[:-1])
-                # Note the removal of NUL characters: https://github.com/Textualize/textual/issues/1661
+                # Note the removal of NUL characters: https://github.com/Keybardize/keybard/issues/1661
                 on_token(events.Paste(pasted_text.replace("\x00", "")))
                 paste_buffer.clear()
 

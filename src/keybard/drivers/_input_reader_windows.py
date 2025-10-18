@@ -13,6 +13,9 @@ class InputReader:
         Args:
             timeout: Seconds to block for input.
         """
+        # Fail-fast: stdin must exist for keyboard input
+        if sys.__stdin__ is None:
+            raise RuntimeError("stdin is not available")
         self._fileno = sys.__stdin__.fileno()
         self.timeout = timeout
         self._exit_event = Event()

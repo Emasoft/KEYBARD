@@ -21,17 +21,18 @@ repos:
     hooks:
       - id: isort
         name: isort (python)
-        language_version: '3.11'
+        language_version: '3.12'
         args: ['--profile', 'black', '--filter-files']
-  - repo: https://github.com/psf/black
-    rev: '24.1.1'
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
     hooks:
-      - id: black
+      - id: ruff-format
+        args: ['--line-length=320']
   - repo: https://github.com/hadialqattan/pycln  # removes unused imports
     rev: v2.5.0
     hooks:
       - id: pycln
-        language_version: '3.11'
+        language_version: '3.12'
         args: [--all]
   - repo: https://github.com/MarcoGorelli/absolufy-imports
     rev: v0.3.1

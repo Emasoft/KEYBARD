@@ -19,7 +19,7 @@ CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x00000002
 TIMER_ALL_ACCESS = 0x1F0003
 
 
-async def time_sleep_coro(secs: float):
+async def time_sleep_coro(secs: float) -> None:
     """Coroutine wrapper around `time.sleep`."""
     await asyncio.sleep(secs)
 
@@ -37,7 +37,7 @@ except Exception:
 
 else:
 
-    async def no_sleep_coro():
+    async def no_sleep_coro() -> None:
         """Creates a coroutine that does nothing for when no sleep is needed."""
         pass
 
@@ -45,11 +45,11 @@ else:
         """A replacement sleep for Windows.
 
         Note that unlike `time.sleep` this *may* sleep for slightly less than the
-        specified time. This is generally not an issue for Textual's use case.
+        specified time. This is generally not an issue for Keybard's use case.
 
         In order to create a timer that _can_ be cancelled on Windows, we need to
         create a timer and a separate event, and then we wait for either of the two
-        things. When Textual wants to quit, we set the cancel event.
+        things. When Keybard wants to quit, we set the cancel event.
 
         Args:
             secs: Seconds to sleep for.
@@ -86,15 +86,15 @@ else:
             kernel32.CloseHandle(timer)
             return time_sleep_coro(sleep_for)
 
-        def cancel_inner():
+        def cancel_inner() -> None:
             """Sets the cancel event so we know we can stop waiting for the timer."""
             kernel32.SetEvent(cancel_event)
 
-        async def cancel():
+        async def cancel() -> None:
             """Cancels the timer by setting the cancel event."""
             await asyncio.get_running_loop().run_in_executor(None, cancel_inner)
 
-        def wait_inner():
+        def wait_inner() -> None:
             """Function responsible for waiting for the timer or the cancel event."""
             if (
                 kernel32.WaitForMultipleObjects(
@@ -107,7 +107,7 @@ else:
             ):
                 time_sleep(sleep_for)
 
-        async def wait():
+        async def wait() -> None:
             """Wraps the actual sleeping so we can detect if the thread was cancelled."""
             try:
                 await asyncio.get_running_loop().run_in_executor(None, wait_inner)

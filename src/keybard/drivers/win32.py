@@ -4,18 +4,17 @@ import ctypes
 import msvcrt
 import sys
 import threading
-from asyncio import AbstractEventLoop, run_coroutine_threadsafe
 from ctypes import Structure, Union, byref, wintypes
 from ctypes.wintypes import BOOL, CHAR, DWORD, HANDLE, SHORT, UINT, WCHAR, WORD
-from typing import IO, TYPE_CHECKING, Callable, List, Optional
+from typing import IO, TYPE_CHECKING, Any, Callable, List, Optional
 
-from textual import constants
-from textual._xterm_parser import XTermParser
-from textual.events import Event, Resize
-from textual.geometry import Size
+from keybard._xterm_parser import XTermParser
+from keybard.events import Event, Resize
+from keybard.geometry import Size
+from keybard.message import Message
 
 if TYPE_CHECKING:
-    from textual.app import App
+    from keybard.reader import KeyboardReader
 
 KERNEL32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore
 
@@ -125,7 +124,7 @@ class INPUT_RECORD(Structure):
     _fields_ = [("EventType", wintypes.WORD), ("Event", InputEvent)]
 
 
-def set_console_mode(file: IO, mode: int) -> bool:
+def set_console_mode(file: IO[Any], mode: int) -> bool:
     """Set the console mode for a given file (stdout or stdin).
 
     Args:
@@ -136,11 +135,11 @@ def set_console_mode(file: IO, mode: int) -> bool:
         True on success, otherwise False.
     """
     windows_filehandle = msvcrt.get_osfhandle(file.fileno())  # type: ignore
-    success = KERNEL32.SetConsoleMode(windows_filehandle, mode)
+    success: bool = bool(KERNEL32.SetConsoleMode(windows_filehandle, mode))
     return success
 
 
-def get_console_mode(file: IO) -> int:
+def get_console_mode(file: IO[Any]) -> int:
     """Get the console mode for a given file (stdout or stdin)
 
     Args:
@@ -161,9 +160,13 @@ def enable_application_mode() -> Callable[[], None]:
     Returns:
         A callable that will restore terminal to previous state.
     """
-
+    # Fail-fast: stdin and stdout must exist for terminal I/O
     terminal_in = sys.__stdin__
     terminal_out = sys.__stdout__
+    if terminal_in is None:
+        raise RuntimeError("stdin is not available")
+    if terminal_out is None:
+        raise RuntimeError("stdout is not available")
 
     current_console_mode_in = get_console_mode(terminal_in)
     current_console_mode_out = get_console_mode(terminal_out)
@@ -210,24 +213,26 @@ def wait_for_handles(handles: List[HANDLE], timeout: int = -1) -> Optional[HANDL
 
 
 class EventMonitor(threading.Thread):
-    """A thread to send key / window events to Textual loop."""
+    """A thread to send key / window events to Keybard loop."""
 
     def __init__(
         self,
-        loop: AbstractEventLoop,
-        app: App,
+        reader: KeyboardReader,
         exit_event: threading.Event,
-        process_event: Callable[[Event], None],
+        process_event: Callable[[Event | Message], None],
     ) -> None:
-        self.loop = loop
-        self.app = app
+        self.reader = reader
         self.exit_event = exit_event
         self.process_event = process_event
-        super().__init__(name="textual-input")
+        super().__init__(name="keybard-input")
 
     def run(self) -> None:
         exit_requested = self.exit_event.is_set
-        parser = XTermParser(debug=constants.DEBUG)
+        # Note: constants.DEBUG is a module attribute check (may not exist), but fail-fast approach
+        # means we let the AttributeError propagate rather than using hasattr/getattr
+        parser = XTermParser(
+            debug=False
+        )  # Use False instead of potentially missing constants.DEBUG
 
         try:
             read_count = wintypes.DWORD(0)
@@ -244,7 +249,6 @@ class EventMonitor(threading.Thread):
             append_key = keys.append
 
             while not exit_requested():
-
                 for event in parser.tick():
                     self.process_event(event)
 
@@ -284,7 +288,7 @@ class EventMonitor(threading.Thread):
                 if keys:
                     # Process keys
                     #
-                    # https://github.com/Textualize/textual/issues/3178 has
+                    # https://github.com/Keybardize/keybard/issues/3178 has
                     # the context for the encode/decode here.
                     for event in parser.feed(
                         "".join(keys).encode("utf-16", "surrogatepass").decode("utf-16")
@@ -294,11 +298,15 @@ class EventMonitor(threading.Thread):
                     # Process changed size
                     self.on_size_change(*new_size)
 
-        except Exception as error:
-            self.app.log.error("EVENT MONITOR ERROR", error)
+        except Exception:
+            # Log the error and stop the reader
+            import traceback
+
+            traceback.print_exc()
+            self.reader.stop()
 
     def on_size_change(self, width: int, height: int) -> None:
         """Called when terminal size changes."""
         size = Size(width, height)
         event = Resize(size, size)
-        run_coroutine_threadsafe(self.app._post_message(event), loop=self.loop)
+        self.process_event(event)

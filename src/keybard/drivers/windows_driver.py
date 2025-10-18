@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-import asyncio
+import logging
 import sys
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Callable
 
-from textual.driver import Driver
-from textual.drivers import win32
-from textual.drivers._writer_thread import WriterThread
+from keybard.driver import Driver
+from keybard.drivers import win32
+from keybard.drivers._writer_thread import WriterThread
 
 if TYPE_CHECKING:
-    from textual.app import App
+    from keybard.reader import KeyboardReader
+
+
+logger = logging.getLogger("keybard.drivers.windows")
 
 
 class WindowsDriver(Driver):
@@ -18,7 +21,7 @@ class WindowsDriver(Driver):
 
     def __init__(
         self,
-        app: App,
+        reader: KeyboardReader,
         *,
         debug: bool = False,
         mouse: bool = True,
@@ -27,12 +30,15 @@ class WindowsDriver(Driver):
         """Initialize Windows driver.
 
         Args:
-            app: The App instance.
+            reader: The KeyboardReader instance.
             debug: Enable debug mode.
             mouse: Enable mouse support.
             size: Initial size of the terminal or `None` to detect.
         """
-        super().__init__(app, debug=debug, mouse=mouse, size=size)
+        super().__init__(reader, debug=debug, mouse=mouse, size=size)
+        # Fail-fast: stdout must exist for terminal output
+        if sys.__stdout__ is None:
+            raise RuntimeError("stdout is not available")
         self._file = sys.__stdout__
         self.exit_event = Event()
         self._event_thread: Thread | None = None
@@ -85,8 +91,6 @@ class WindowsDriver(Driver):
 
     def start_application_mode(self) -> None:
         """Start application mode."""
-        loop = asyncio.get_running_loop()
-
         self._restore_console = win32.enable_application_mode()
 
         self._writer_thread = WriterThread(self._file)
@@ -100,9 +104,7 @@ class WindowsDriver(Driver):
         self.flush()
         self._enable_bracketed_paste()
 
-        self._event_thread = win32.EventMonitor(
-            loop, self._app, self.exit_event, self.process_message
-        )
+        self._event_thread = win32.EventMonitor(self._reader, self.exit_event, self.process_message)
         self._event_thread.start()
 
     def disable_input(self) -> None:
@@ -115,9 +117,9 @@ class WindowsDriver(Driver):
                     self._event_thread.join()
                     self._event_thread = None
                 self.exit_event.clear()
-        except Exception as error:
-            # TODO: log this
-            pass
+        except Exception as e:
+            # Log error when disabling input (e.g., mouse support failures, thread join issues)
+            logger.error(f"Error while disabling input: {e}", exc_info=True)
 
     def stop_application_mode(self) -> None:
         """Stop application mode, restore state."""

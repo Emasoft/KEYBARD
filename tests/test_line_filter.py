@@ -1,8 +1,8 @@
 from rich.segment import Segment
 from rich.style import Style
 
-from textual.color import Color
-from textual.filter import DimFilter
+from keybard.color import Color
+from keybard.filter import DimFilter
 
 
 def test_dim_apply():

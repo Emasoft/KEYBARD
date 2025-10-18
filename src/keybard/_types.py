@@ -5,7 +5,7 @@ from typing_extensions import Protocol
 if TYPE_CHECKING:
     from rich.segment import Segment
 
-    from textual.message import Message
+    from keybard.message import Message
 
 
 class MessageTarget(Protocol):
@@ -54,4 +54,4 @@ WatchCallbackType = Union[
 """Type used for callbacks passed to the `watch` method of widgets."""
 
 AnimationLevel = Literal["none", "basic", "full"]
-"""The levels that the [`TEXTUAL_ANIMATIONS`][textual.constants.TEXTUAL_ANIMATIONS] env var can be set to."""
+"""The levels that the [`KEYBARD_ANIMATIONS`][keybard.constants.KEYBARD_ANIMATIONS] env var can be set to."""

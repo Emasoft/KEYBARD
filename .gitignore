@@ -129,3 +129,54 @@ sandbox/
 
 # Used by mkdocs-material social plugin
 .cache
+
+# Temporary work/tracking files
+WORK_*.md
+TODO*.md
+NOTES*.md
+*.bak
+*~
+.log
+
+# Development directories (should not be in package)
+.clirope/
+.mega-copy/
+
+# Obsolete documentation (old refactoring notes)
+DEBUGPANEL_GUIDE.md
+EXAMPLES_STATUS.md
+REFACTORING_SUMMARY.md
+KNOWN_ISSUES.md
+
+# Claude Code AI assistant files (local development only)
+CLAUDE.md
+.claude/
+claude_*.md
+*_CLAUDE.md
+
+# Environment and secrets
+.env
+.env.*
+*.key
+*.pem
+secrets/
+credentials/
+
+# Logs and temporary files
+*.log
+logs/
+*.tmp
+.tmp/
+
+# Coverage and test artifacts
+coverage.json
+.coverage.*
+htmlcov/
+.pytest_cache/
+
+# Editor and IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

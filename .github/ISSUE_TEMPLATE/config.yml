@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/Emasoft/KEYBARD/discussions
+    about: Ask questions or discuss ideas (requires GitHub Discussions to be enabled)
+  - name: Textual Framework
+    url: https://github.com/Textualize/textual
+    about: For full TUI framework features (widgets, mouse support, layouts, etc.)

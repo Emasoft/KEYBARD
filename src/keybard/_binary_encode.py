@@ -96,7 +96,7 @@ def dump(data: object) -> bytes:
         encoded_data = datum.encode("utf-8")
         return b"s%i:%s" % (len(encoded_data), encoded_data)
 
-    def encode_list(datum: list) -> bytes:
+    def encode_list(datum: list[Any]) -> bytes:
         """
         Encode a list value.
 
@@ -108,7 +108,7 @@ def dump(data: object) -> bytes:
         """
         return b"l%se" % b"".join(encode(element) for element in datum)
 
-    def encode_tuple(datum: tuple) -> bytes:
+    def encode_tuple(datum: tuple[Any, ...]) -> bytes:
         """
         Encode a tuple value.
 
@@ -120,7 +120,7 @@ def dump(data: object) -> bytes:
         """
         return b"t%se" % b"".join(encode(element) for element in datum)
 
-    def encode_dict(datum: dict) -> bytes:
+    def encode_dict(datum: dict[Any, Any]) -> bytes:
         """
         Encode a dictionary value.
 
@@ -134,7 +134,7 @@ def dump(data: object) -> bytes:
             b"%s%s" % (encode(key), encode(value)) for key, value in datum.items()
         )
 
-    ENCODERS: dict[type, Callable[[Any], Any]] = {
+    ENCODERS: dict[type, Callable[[Any], bytes]] = {
         type(None): encode_none,
         bool: encode_bool,
         int: encode_int,
@@ -300,7 +300,7 @@ def load(encoded: bytes) -> object:
         get_byte()
         return elements
 
-    DECODERS = {
+    DECODERS: dict[bytes, Callable[[], object]] = {
         b"i": decode_int,
         b"s": decode_string,
         b"l": decode_list,

@@ -1,15 +1,13 @@
 import pytest
 from rich.color import Color as RichColor
 
-from textual.color import Color, Gradient, Lab, lab_to_rgb, rgb_to_lab
+from keybard.color import Color, Gradient, Lab, lab_to_rgb, rgb_to_lab
 
 
 def test_rich_color():
     """Check conversion to Rich color."""
     assert Color(10, 20, 30, 1.0).rich_color == RichColor.from_rgb(10, 20, 30)
-    assert Color.from_rich_color(RichColor.from_rgb(10, 20, 30)) == Color(
-        10, 20, 30, 1.0
-    )
+    assert Color.from_rich_color(RichColor.from_rgb(10, 20, 30)) == Color(10, 20, 30, 1.0)
 
 
 def test_normalized():
@@ -43,24 +41,16 @@ def test_rgb():
 def test_hsl():
     red = Color(200, 20, 32)
     print(red.hsl)
-    assert red.hsl == pytest.approx(
-        (0.9888888888888889, 0.818181818181818, 0.43137254901960786)
-    )
-    assert Color.from_hsl(
-        0.9888888888888889, 0.818181818181818, 0.43137254901960786
-    ).normalized == pytest.approx(red.normalized, rel=1e-5)
+    assert red.hsl == pytest.approx((0.9888888888888889, 0.818181818181818, 0.43137254901960786))
+    assert Color.from_hsl(0.9888888888888889, 0.818181818181818, 0.43137254901960786).normalized == pytest.approx(red.normalized, rel=1e-5)
     assert red.hsl.css == "hsl(356,81.8%,43.1%)"
 
 
 def test_hsv():
     red = Color(200, 20, 32)
     print(red.hsv)
-    assert red.hsv == pytest.approx(
-        (0.9888888888888889, 0.8999999999999999, 0.7843137254901961)
-    )
-    assert Color.from_hsv(
-        0.9888888888888889, 0.8999999999999999, 0.7843137254901961
-    ).normalized == pytest.approx(red.normalized, rel=1e-5)
+    assert red.hsv == pytest.approx((0.9888888888888889, 0.8999999999999999, 0.7843137254901961))
+    assert Color.from_hsv(0.9888888888888889, 0.8999999999999999, 0.7843137254901961).normalized == pytest.approx(red.normalized, rel=1e-5)
 
 
 def test_color_brightness():
@@ -157,9 +147,7 @@ def test_color_parse_hsl_negative_degrees():
 
 
 def test_color_parse_hsla_negative_degrees():
-    assert Color.parse("hsla(-45, 50%, 50%, 0.2)") == Color.parse(
-        "hsla(315, 50%, 50%, 0.2)"
-    )
+    assert Color.parse("hsla(-45, 50%, 50%, 0.2)") == Color.parse("hsla(315, 50%, 50%, 0.2)")
 
 
 def test_color_parse_color():

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import asyncio
+import logging
 import os
 import selectors
 import signal
@@ -9,39 +9,48 @@ import termios
 import tty
 from codecs import getincrementaldecoder
 from threading import Event, Thread
+from types import FrameType
 from typing import TYPE_CHECKING, Any
 
 import rich.repr
 
-from textual import events
-from textual._loop import loop_last
-from textual._parser import ParseError
-from textual._xterm_parser import XTermParser
-from textual.driver import Driver
-from textual.geometry import Size
+from keybard import events
+from keybard._loop import loop_last
+from keybard._parser import ParseError
+from keybard._xterm_parser import XTermParser
+from keybard.driver import Driver
+from keybard.geometry import Size
 
 if TYPE_CHECKING:
-    from textual.app import App
+    from keybard.reader import KeyboardReader
+
+
+logger = logging.getLogger("keybard.drivers.linux_inline")
 
 
 @rich.repr.auto(angular=True)
 class LinuxInlineDriver(Driver):
     def __init__(
         self,
-        app: App,
+        reader: KeyboardReader,
         *,
         debug: bool = False,
         mouse: bool = True,
         size: tuple[int, int] | None = None,
     ):
-        super().__init__(app, debug=debug, mouse=mouse, size=size)
+        super().__init__(reader, debug=debug, mouse=mouse, size=size)
+        # Fail-fast: stdin and stderr must exist for terminal I/O
+        if sys.__stdin__ is None:
+            raise RuntimeError("stdin is not available")
+        if sys.__stderr__ is None:
+            raise RuntimeError("stderr is not available")
         self._file = sys.__stderr__
         self.fileno = sys.__stdin__.fileno()
         self.attrs_before: list[Any] | None = None
         self.exit_event = Event()
 
     def __rich_repr__(self) -> rich.repr.Result:
-        yield self._app
+        yield self._reader
 
     @property
     def is_inline(self) -> bool:
@@ -101,6 +110,7 @@ class LinuxInlineDriver(Driver):
         self.flush()
 
     def write(self, data: str) -> None:
+        # _file is guaranteed non-None by __init__ fail-fast check
         self._file.write(data)
 
     def _run_input_thread(self) -> None:
@@ -111,12 +121,11 @@ class LinuxInlineDriver(Driver):
         try:
             self.run_input_thread()
         except BaseException:
-            import rich.traceback
+            # Fail-fast: Log the error and stop the reader
+            import traceback
 
-            self._app.call_later(
-                self._app.panic,
-                rich.traceback.Traceback(),
-            )
+            traceback.print_exc()
+            self._reader.stop()
 
     def run_input_thread(self) -> None:
         """Wait for input and dispatch events."""
@@ -177,8 +186,6 @@ class LinuxInlineDriver(Driver):
                 pass
 
     def start_application_mode(self) -> None:
-        loop = asyncio.get_running_loop()
-
         def send_size_event(clear: bool = False) -> None:
             """Send the resize event, optionally clearing the screen.
 
@@ -187,21 +194,14 @@ class LinuxInlineDriver(Driver):
             """
             terminal_size = self._get_terminal_size()
             width, height = terminal_size
-            textual_size = Size(width, height)
-            event = events.Resize(textual_size, textual_size)
+            keybard_size = Size(width, height)
+            event = events.Resize(keybard_size, keybard_size)
 
-            async def update_size() -> None:
-                """Update the screen size."""
-                if clear:
-                    self.write("\x1b[2J")
-                await self._app._post_message(event)
+            if clear:
+                self.write("\x1b[2J")
+            self.process_message(event)
 
-            asyncio.run_coroutine_threadsafe(
-                update_size(),
-                loop=loop,
-            )
-
-        def on_terminal_resize(signum, stack) -> None:
+        def on_terminal_resize(signum: int, stack: FrameType | None) -> None:
             send_size_event(clear=True)
 
         signal.signal(signal.SIGWINCH, on_terminal_resize)
@@ -212,7 +212,7 @@ class LinuxInlineDriver(Driver):
         self.flush()
 
         self._enable_mouse_support()
-        self.write("\n" * self._app.INLINE_PADDING)
+        self.write("\n" * 2)
         self.flush()
         try:
             self.attrs_before = termios.tcgetattr(self.fileno)
@@ -237,7 +237,7 @@ class LinuxInlineDriver(Driver):
 
             termios.tcsetattr(self.fileno, termios.TCSANOW, newattr)
 
-        self._key_thread = Thread(target=self._run_input_thread, name="textual-input")
+        self._key_thread = Thread(target=self._run_input_thread, name="keybard-input")
         send_size_event()
         self._key_thread.start()
         self._request_terminal_sync_mode_support()
@@ -263,8 +263,8 @@ class LinuxInlineDriver(Driver):
             New lflag.
 
         """
-        # if TEXTUAL_ALLOW_SIGNALS env var is set, then allow Ctrl+C to send signals
-        ISIG = 0 if os.environ.get("TEXTUAL_ALLOW_SIGNALS") else termios.ISIG
+        # if KEYBARD_ALLOW_SIGNALS env var is set, then allow Ctrl+C to send signals
+        ISIG = 0 if os.environ.get("KEYBARD_ALLOW_SIGNALS") else termios.ISIG
 
         return attrs & ~(termios.ECHO | termios.ICANON | termios.IEXTEN | ISIG)
 
@@ -298,11 +298,11 @@ class LinuxInlineDriver(Driver):
                 except termios.error:
                     pass
 
-        except Exception as error:
-            # TODO: log this
-            pass
+        except Exception as e:
+            # Log error when disabling input (e.g., signal handler failures, thread join issues)
+            logger.error(f"Error while disabling input: {e}", exc_info=True)
 
-    def flush(self):
+    def flush(self) -> None:
         """Flush any buffered data."""
         self._file.flush()
 

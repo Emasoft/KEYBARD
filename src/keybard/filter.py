@@ -2,7 +2,7 @@
 
 !!! note
 
-    Filters are used internally, and not recommended for use by Textual app developers.
+    Filters are used internally, and not recommended for use by Keybard app developers.
 
 Filters are used internally to process terminal output after it has been rendered.
 Currently this is used internally to convert the application to monochrome, when the NO_COLOR env var is set.
@@ -21,8 +21,8 @@ from rich.segment import Segment
 from rich.style import Style
 from rich.terminal_theme import TerminalTheme
 
-from textual.color import Color
-from textual.constants import DIM_FACTOR
+from keybard.color import Color
+from keybard.constants import DIM_FACTOR
 
 
 class LineFilter(ABC):
@@ -61,16 +61,8 @@ def monochrome_style(style: Style) -> Style:
     """
     style_color = style.color
     style_background = style.bgcolor
-    color = (
-        None
-        if style_color is None
-        else Color.from_rich_color(style_color).monochrome.rich_color
-    )
-    background = (
-        None
-        if style_background is None
-        else Color.from_rich_color(style_background).monochrome.rich_color
-    )
+    color = None if style_color is None else Color.from_rich_color(style_color).monochrome.rich_color
+    background = None if style_background is None else Color.from_rich_color(style_background).monochrome.rich_color
     return style + Style.from_color(color, background)
 
 
@@ -89,18 +81,13 @@ class Monochrome(LineFilter):
         """
         _monochrome_style = monochrome_style
         _Segment = Segment
-        return [
-            _Segment(text, _monochrome_style(style), None)
-            for text, style, _ in segments
-        ]
+        return [_Segment(text, _monochrome_style(style), None) for text, style, _ in segments]
 
 
 class NoColor(LineFilter):
     """Remove all color information from segments."""
 
-    DEFAULT_COLORS = Style.from_color(
-        RichColor.parse("default"), RichColor.parse("default")
-    )
+    DEFAULT_COLORS = Style.from_color(RichColor.parse("default"), RichColor.parse("default"))
 
     def apply(self, segments: list[Segment], background: Color) -> list[Segment]:
         """Transform a list of segments.
@@ -115,10 +102,7 @@ class NoColor(LineFilter):
 
         _Segment = Segment
         default_colors = self.DEFAULT_COLORS
-        return [
-            _Segment(text, None if style is None else (style + default_colors), control)
-            for text, style, control in segments
-        ]
+        return [_Segment(text, None if style is None else (style + default_colors), control) for text, style, control in segments]
 
 
 NO_DIM = Style(dim=False)
@@ -126,9 +110,7 @@ NO_DIM = Style(dim=False)
 
 
 @lru_cache(1024)
-def dim_color(
-    background: RichColor, color: RichColor, factor: float = DIM_FACTOR
-) -> RichColor:
+def dim_color(background: RichColor, color: RichColor, factor: float = DIM_FACTOR) -> RichColor:
     """Dim a color by blending towards the background
 
     Args:
@@ -139,8 +121,15 @@ def dim_color(
     Returns:
         New dimmer color.
     """
-    red1, green1, blue1 = background.triplet
-    red2, green2, blue2 = color.triplet
+    # Fail-fast: triplet must exist for RGB colors
+    bg_triplet = background.triplet
+    color_triplet = color.triplet
+    if bg_triplet is None or color_triplet is None:
+        # Fallback to original color if triplet is None (shouldn't happen with RGB colors)
+        return color
+
+    red1, green1, blue1 = bg_triplet
+    red2, green2, blue2 = color_triplet
 
     return RichColor.from_rgb(
         red1 + (red2 - red1) * factor,
@@ -163,11 +152,15 @@ def dim_style(style: Style, background: Color, factor: float) -> Style:
     Returns:
         New dimmed style.
     """
+    # Fail-fast: style.color must exist for dimming
+    if style.color is None:
+        return style
+
     return (
         style
         + Style.from_color(
             dim_color(
-                (background.rich_color if style.bgcolor.is_default else style.bgcolor),
+                (background.rich_color if style.bgcolor is None or style.bgcolor.is_default else style.bgcolor),
                 style.color,
                 factor,
             ),
@@ -244,9 +237,7 @@ class ANSIToTruecolor(LineFilter):
         changed = False
         if (color := style.color) is not None:
             if color.triplet is None:
-                color = RichColor.from_triplet(
-                    color.get_truecolor(terminal_theme, foreground=True)
-                )
+                color = RichColor.from_triplet(color.get_truecolor(terminal_theme, foreground=True))
                 changed = True
             if style.dim:
                 color = dim_color(background, color)
@@ -254,9 +245,7 @@ class ANSIToTruecolor(LineFilter):
                 changed = True
 
         if (bgcolor := style.bgcolor) is not None and bgcolor.triplet is None:
-            bgcolor = RichColor.from_triplet(
-                bgcolor.get_truecolor(terminal_theme, foreground=False)
-            )
+            bgcolor = RichColor.from_triplet(bgcolor.get_truecolor(terminal_theme, foreground=False))
             changed = True
 
         return style + Style.from_color(color, bgcolor) if changed else style
@@ -277,11 +266,7 @@ class ANSIToTruecolor(LineFilter):
         return [
             _Segment(
                 text,
-                (
-                    None
-                    if style is None
-                    else truecolor_style(style, background_rich_color)
-                ),
+                (None if style is None else truecolor_style(style, background_rich_color)),
                 None,
             )
             for text, style, _ in segments

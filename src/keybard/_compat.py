@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import sys
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Callable, Generic, TypeVar, overload
+
+# Import Self for type annotations (Python 3.11+)
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 if sys.version_info >= (3, 12):
     from functools import cached_property
@@ -27,37 +33,23 @@ else:
             if self.attrname is None:
                 self.attrname = name
             elif name != self.attrname:
-                raise TypeError(
-                    "Cannot assign the same cached_property to two different names "
-                    f"({self.attrname!r} and {name!r})."
-                )
+                raise TypeError(f"Cannot assign the same cached_property to two different names ({self.attrname!r} and {name!r}).")
 
         @overload
         def __get__(self, instance: None, owner: type[Any] | None = None) -> Self: ...
 
         @overload
-        def __get__(
-            self, instance: object, owner: type[Any] | None = None
-        ) -> _T_co: ...
+        def __get__(self, instance: object, owner: type[Any] | None = None) -> _T_co: ...
 
-        def __get__(
-            self, instance: object, owner: type[Any] | None = None
-        ) -> _T_co | Self:
+        def __get__(self, instance: object, owner: type[Any] | None = None) -> _T_co | Self:
             if instance is None:
                 return self
             if self.attrname is None:
-                raise TypeError(
-                    "Cannot use cached_property instance without calling __set_name__ on it."
-                )
+                raise TypeError("Cannot use cached_property instance without calling __set_name__ on it.")
             try:
                 cache = instance.__dict__
-            except (
-                AttributeError
-            ):  # not all objects have __dict__ (e.g. class defines slots)
-                msg = (
-                    f"No '__dict__' attribute on {type(instance).__name__!r} "
-                    f"instance to cache {self.attrname!r} property."
-                )
+            except AttributeError:  # not all objects have __dict__ (e.g. class defines slots)
+                msg = f"No '__dict__' attribute on {type(instance).__name__!r} instance to cache {self.attrname!r} property."
                 raise TypeError(msg) from None
             val = cache.get(self.attrname, _NOT_FOUND)
             if val is _NOT_FOUND:
@@ -65,9 +57,6 @@ else:
                 try:
                     cache[self.attrname] = val
                 except TypeError:
-                    msg = (
-                        f"The '__dict__' attribute on {type(instance).__name__!r} instance "
-                        f"does not support item assignment for caching {self.attrname!r} property."
-                    )
+                    msg = f"The '__dict__' attribute on {type(instance).__name__!r} instance does not support item assignment for caching {self.attrname!r} property."
                     raise TypeError(msg) from None
             return val

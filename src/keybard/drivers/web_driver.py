@@ -20,16 +20,19 @@ from codecs import getincrementaldecoder
 from functools import partial
 from pathlib import Path
 from threading import Event, Thread
-from typing import Any, BinaryIO, Literal, TextIO, cast
+from typing import TYPE_CHECKING, BinaryIO, Literal, TextIO, cast
 
-from textual import events, log, messages
-from textual._binary_encode import dump as binary_dump
-from textual._xterm_parser import XTermParser
-from textual.app import App
-from textual.driver import Driver
-from textual.drivers._byte_stream import ByteStream
-from textual.drivers._input_reader import InputReader
-from textual.geometry import Size
+from keybard import events
+from keybard import log
+from keybard._binary_encode import dump as binary_dump
+from keybard._xterm_parser import XTermParser
+from keybard.driver import Driver
+from keybard.drivers._byte_stream import ByteStream
+from keybard.drivers._input_reader import InputReader
+from keybard.geometry import Size
+
+if TYPE_CHECKING:
+    from keybard.reader import KeyboardReader
 
 WINDOWS = sys.platform == "win32"
 
@@ -43,7 +46,7 @@ class WebDriver(Driver):
 
     def __init__(
         self,
-        app: App[Any],
+        reader: KeyboardReader,
         *,
         debug: bool = False,
         mouse: bool = True,
@@ -57,14 +60,14 @@ class WebDriver(Driver):
                 pass
             else:
                 size = width, height
-        super().__init__(app, debug=debug, mouse=mouse, size=size)
+        super().__init__(reader, debug=debug, mouse=mouse, size=size)
         self.stdout = sys.__stdout__
+        if sys.__stdout__ is None:
+            raise RuntimeError("sys.__stdout__ is None")
         self.fileno = sys.__stdout__.fileno()
         self._write = partial(os.write, self.fileno)
         self.exit_event = Event()
-        self._key_thread: Thread = Thread(
-            target=self.run_input_thread, name="textual-input"
-        )
+        self._key_thread: Thread = Thread(target=self.run_input_thread, name="keybard-input")
         self._input_reader = InputReader()
 
         self._deliveries: dict[str, BinaryIO | TextIO] = {}
@@ -77,7 +80,7 @@ class WebDriver(Driver):
 
     def write(self, data: str) -> None:
         """Write string data to the output device, which may be piped to
-        the parent process (i.e. textual-web/textual-serve).
+        the parent process (i.e. keybard-web/keybard-serve).
 
         Args:
             data: Raw data.
@@ -88,7 +91,7 @@ class WebDriver(Driver):
 
     def write_meta(self, data: dict[str, object]) -> None:
         """Write a dictionary containing some metadata to stdout, which
-        may be piped to the parent process (i.e. textual-web/textual-serve).
+        may be piped to the parent process (i.e. keybard-web/keybard-serve).
 
         Args:
             data: Meta dict.
@@ -139,17 +142,18 @@ class WebDriver(Driver):
     def start_application_mode(self) -> None:
         """Start application mode."""
 
-        loop = asyncio.get_running_loop()
-
         def do_exit() -> None:
             """Callback to force exit."""
-            asyncio.run_coroutine_threadsafe(
-                self._app._post_message(messages.ExitApp()), loop=loop
-            )
+            self._reader.stop()
 
-        if not WINDOWS:
-            for _signal in (signal.SIGINT, signal.SIGTERM):
-                loop.add_signal_handler(_signal, do_exit)
+        try:
+            loop = asyncio.get_running_loop()
+            if not WINDOWS:
+                for _signal in (signal.SIGINT, signal.SIGTERM):
+                    loop.add_signal_handler(_signal, do_exit)
+        except RuntimeError:
+            # No event loop running - sync mode
+            pass
 
         self._write(b"__GANGLION__\n")
 
@@ -161,16 +165,12 @@ class WebDriver(Driver):
 
         size = Size(80, 24) if self._size is None else Size(*self._size)
         event = events.Resize(size, size)
-        asyncio.run_coroutine_threadsafe(
-            self._app._post_message(event),
-            loop=loop,
-        )
+        self.process_message(event)
 
         self._request_terminal_sync_mode_support()
         self._enable_bracketed_paste()
         self.flush()
         self._key_thread.start()
-        self._app.call_later(self._app.post_message, events.AppBlur())
 
     def disable_input(self) -> None:
         """Disable further input."""
@@ -208,7 +208,7 @@ class WebDriver(Driver):
         except Exception:
             from traceback import format_exc
 
-            log(format_exc())
+            log.error(format_exc())
         finally:
             input_reader.close()
 
@@ -224,9 +224,7 @@ class WebDriver(Driver):
         if isinstance(_type, str):
             self.on_meta(_type, payload_map)
         else:
-            log.error(
-                f"Protocol error: type field value is not a string. Value is {_type!r}"
-            )
+            log.error(f"Protocol error: type field value is not a string. Value is {_type!r}")
 
     def on_meta(self, packet_type: str, payload: dict[str, object]) -> None:
         """Process a dictionary containing information received from the controlling process.
@@ -236,15 +234,17 @@ class WebDriver(Driver):
             payload: meta dict.
         """
         if packet_type == "resize":
-            self._size = (payload["width"], payload["height"])
-            requested_size = Size(*self._size)
-            self._app.post_message(events.Resize(requested_size, requested_size))
+            width = cast(int, payload["width"])
+            height = cast(int, payload["height"])
+            self._size = Size(width, height)
+            requested_size = self._size
+            self.process_message(events.Resize(requested_size, requested_size))
         elif packet_type == "focus":
-            self._app.post_message(events.AppFocus())
+            self.process_message(events.AppFocus())
         elif packet_type == "blur":
-            self._app.post_message(events.AppBlur())
+            self.process_message(events.AppBlur())
         elif packet_type == "quit":
-            self._app.post_message(messages.ExitApp())
+            self._reader.stop()
         elif packet_type == "exit":
             raise _ExitInput()
         elif packet_type == "deliver_chunk_request":
@@ -252,7 +252,7 @@ class WebDriver(Driver):
             log.debug(f"Deliver chunk request: {payload}")
             try:
                 delivery_key = cast(str, payload["key"])
-                requested_size = cast(int, payload["size"])
+                chunk_size = cast(int, payload["size"])
             except KeyError:
                 log.error("Protocol error: deliver_chunk_request missing key or size")
                 return
@@ -263,15 +263,13 @@ class WebDriver(Driver):
             try:
                 file_like = deliveries[delivery_key]
             except KeyError:
-                log.error(
-                    f"Protocol error: deliver_chunk_request invalid key {delivery_key!r}"
-                )
+                log.error(f"Protocol error: deliver_chunk_request invalid key {delivery_key!r}")
             else:
                 # Read the requested amount of data from the file
-                name: str | None = payload.get("name", None)
+                name = cast(str | None, payload.get("name", None))
                 try:
-                    log.debug(f"Reading {requested_size} bytes from {delivery_key}")
-                    chunk = file_like.read(requested_size)
+                    log.debug(f"Reading {chunk_size} bytes from {delivery_key}")
+                    chunk = file_like.read(chunk_size)
                     log.debug(f"Delivering chunk {delivery_key!r} of len {len(chunk)}")
                     self.write_binary_encoded(("deliver_chunk", delivery_key, chunk))
                     # We've hit an empty chunk, so we're done
@@ -284,15 +282,20 @@ class WebDriver(Driver):
                     file_like.close()
                     del deliveries[delivery_key]
 
-                    log.error(
-                        f"Error delivering file chunk for key {delivery_key!r}. "
-                        "Cancelling delivery."
-                    )
+                    log.error(f"Error delivering file chunk for key {delivery_key!r}. Cancelling delivery.")
                     import traceback
 
                     log.error(str(traceback.format_exc()))
 
                     self._delivery_failed(delivery_key, exception=error, name=name)
+
+    def _delivery_complete(self, delivery_key: str, save_path: Path | None, name: str | None) -> None:
+        """Called when a file delivery completes successfully."""
+        pass
+
+    def _delivery_failed(self, delivery_key: str, exception: Exception, name: str | None) -> None:
+        """Called when a file delivery fails."""
+        pass
 
     def open_url(self, url: str, new_tab: bool = True) -> None:
         """Open a URL in the default web browser.

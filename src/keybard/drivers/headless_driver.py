@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import asyncio
-
-from textual import events
-from textual.driver import Driver
-from textual.geometry import Size
+from keybard import events
+from keybard.driver import Driver
+from keybard.geometry import Size
 
 
 class HeadlessDriver(Driver):
@@ -43,18 +41,14 @@ class HeadlessDriver(Driver):
 
     def start_application_mode(self) -> None:
         """Start application mode."""
-        loop = asyncio.get_running_loop()
 
         def send_size_event() -> None:
             """Send first resize event."""
             terminal_size = self._get_terminal_size()
             width, height = terminal_size
-            textual_size = Size(width, height)
-            event = events.Resize(textual_size, textual_size)
-            asyncio.run_coroutine_threadsafe(
-                self._app._post_message(event),
-                loop=loop,
-            )
+            keybard_size = Size(width, height)
+            event = events.Resize(keybard_size, keybard_size)
+            self.process_message(event)
 
         send_size_event()
 

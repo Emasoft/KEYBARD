@@ -2,19 +2,9 @@ import itertools
 
 import pytest
 
-from textual._xterm_parser import XTermParser
-from textual.events import (
-    Key,
-    MouseDown,
-    MouseMove,
-    MouseScrollDown,
-    MouseScrollLeft,
-    MouseScrollRight,
-    MouseScrollUp,
-    MouseUp,
-    Paste,
-)
-from textual.messages import TerminalSupportsSynchronizedOutput
+from keybard._xterm_parser import XTermParser
+from keybard.events import Key, Paste
+from keybard.messages import TerminalSupportsSynchronizedOutput
 
 
 def chunks(data, size):
@@ -181,174 +171,11 @@ def test_double_escape(parser):
     assert [event.key for event in events] == ["escape", "escape"]
 
 
-@pytest.mark.parametrize(
-    "sequence, event_type, shift, meta",
-    [
-        # Mouse down, with and without modifiers
-        ("\x1b[<0;50;25M", MouseDown, False, False),
-        ("\x1b[<4;50;25M", MouseDown, True, False),
-        ("\x1b[<8;50;25M", MouseDown, False, True),
-        ("\x1b[<12;50;25M", MouseDown, True, True),
-        # Mouse up, with and without modifiers
-        ("\x1b[<0;50;25m", MouseUp, False, False),
-        ("\x1b[<4;50;25m", MouseUp, True, False),
-        ("\x1b[<8;50;25m", MouseUp, False, True),
-        ("\x1b[<12;50;25m", MouseUp, True, True),
-    ],
-)
-def test_mouse_click(parser, sequence, event_type, shift, meta):
-    """ANSI codes for mouse should be converted to Textual events"""
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, event_type)
-    assert event.x == 49
-    assert event.y == 24
-    assert event.screen_x == 49
-    assert event.screen_y == 24
-    assert event.meta is meta
-    assert event.shift is shift
-
-
-@pytest.mark.parametrize(
-    "sequence, shift, meta, button",
-    [
-        ("\x1b[<32;15;38M", False, False, 1),  # Click and drag
-        ("\x1b[<35;15;38M", False, False, 0),  # Basic cursor movement
-        ("\x1b[<39;15;38M", True, False, 0),  # Shift held down
-        ("\x1b[<43;15;38M", False, True, 0),  # Meta held down
-        ("\x1b[<3;15;38M", False, False, 0),
-    ],
-)
-def test_mouse_move(parser, sequence, shift, meta, button):
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, MouseMove)
-    assert event.x == 14
-    assert event.y == 37
-    assert event.shift is shift
-    assert event.meta is meta
-    assert event.button == button
-
-
-@pytest.mark.parametrize(
-    "sequence, shift, meta",
-    [
-        ("\x1b[<64;18;25M", False, False),
-        ("\x1b[<68;18;25M", True, False),
-        ("\x1b[<72;18;25M", False, True),
-    ],
-)
-def test_mouse_scroll_up(parser, sequence, shift, meta):
-    """Scrolling the mouse with and without modifiers held down.
-    We don't currently capture modifier keys in scroll events.
-    """
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, MouseScrollUp)
-    assert event.x == 17
-    assert event.y == 24
-    assert event.shift is shift
-    assert event.meta is meta
-
-
-@pytest.mark.parametrize(
-    "sequence, shift, meta",
-    [
-        ("\x1b[<65;18;25M", False, False),
-        ("\x1b[<69;18;25M", True, False),
-        ("\x1b[<73;18;25M", False, True),
-    ],
-)
-def test_mouse_scroll_down(parser, sequence, shift, meta):
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, MouseScrollDown)
-    assert event.x == 17
-    assert event.y == 24
-    assert event.shift is shift
-    assert event.meta is meta
-
-
-@pytest.mark.parametrize(
-    "sequence, shift, meta",
-    [
-        ("\x1b[<66;18;25M", False, False),
-        ("\x1b[<70;18;25M", True, False),
-        ("\x1b[<74;18;25M", False, True),
-    ],
-)
-def test_mouse_scroll_left(parser, sequence, shift, meta):
-    """Scrolling the mouse with and without modifiers held down.
-    We don't currently capture modifier keys in scroll events.
-    """
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, MouseScrollLeft)
-    assert event.x == 17
-    assert event.y == 24
-    assert event.shift is shift
-    assert event.meta is meta
-
-
-@pytest.mark.parametrize(
-    "sequence, shift, meta",
-    [
-        ("\x1b[<67;18;25M", False, False),
-        ("\x1b[<71;18;25M", True, False),
-        ("\x1b[<75;18;25M", False, True),
-    ],
-)
-def test_mouse_scroll_right(parser, sequence, shift, meta):
-    """Scrolling the mouse with and without modifiers held down.
-    We don't currently capture modifier keys in scroll events.
-    """
-    events = list(parser.feed(sequence))
-
-    assert len(events) == 1
-
-    event = events[0]
-
-    assert isinstance(event, MouseScrollRight)
-    assert event.x == 17
-    assert event.y == 24
-    assert event.shift is shift
-    assert event.meta is meta
-
-
-def test_mouse_event_detected_but_info_not_parsed(parser):
-    # I don't know if this can actually happen in reality, but
-    # there's a branch in the code that allows for the possibility.
-    events = list(parser.feed("\x1b[<65;18;20;25M"))
-    assert len(events) == 0
-
-
-@pytest.mark.xfail()
-def test_escape_sequence_resulting_in_multiple_keypresses(parser):
-    """Some sequences are interpreted as more than 1 keypress"""
+def test_escape_sequence_with_modifiers(parser):
+    """Escape sequences can include modifier keys"""
     events = list(parser.feed("\x1b[2;4~"))
-    assert len(events) == 2
-    assert events[0].key == "escape"
-    assert events[1].key == "shift+insert"
+    assert len(events) == 1
+    assert events[0].key == "alt+shift+insert"
 
 
 @pytest.mark.parametrize("parameter", range(1, 5))

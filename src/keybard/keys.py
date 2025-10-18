@@ -6,7 +6,7 @@ from functools import lru_cache
 
 
 # Adapted from prompt toolkit https://github.com/prompt-toolkit/python-prompt-toolkit/blob/master/prompt_toolkit/keys.py
-class Keys(str, Enum):  # type: ignore[no-redef]
+class Keys(str, Enum):
     """
     List of keys for use in key bindings.
 
@@ -16,7 +16,7 @@ class Keys(str, Enum):  # type: ignore[no-redef]
 
     @property
     def value(self) -> str:
-        return super().value
+        return super().value  # type: ignore[no-any-return]
 
     Escape = "escape"  # Also Control-[
     ShiftEscape = "shift+escape"
@@ -345,9 +345,7 @@ def _character_to_key(character: str) -> str:
     """
     if not character.isalnum():
         try:
-            key = (
-                unicodedata.name(character).lower().replace("-", "_").replace(" ", "_")
-            )
+            key = unicodedata.name(character).lower().replace("-", "_").replace(" ", "_")
         except ValueError:
             key = ASCII_KEY_NAMES.get(character, character)
     else:
@@ -363,6 +361,4 @@ def _normalize_key_list(keys: str) -> str:
     """
 
     keys_list = [key.strip() for key in keys.split(",")]
-    return ",".join(
-        _character_to_key(key) if len(key) == 1 else key for key in keys_list
-    )
+    return ",".join(_character_to_key(key) if len(key) == 1 else key for key in keys_list)

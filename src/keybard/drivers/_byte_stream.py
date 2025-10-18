@@ -116,9 +116,7 @@ class ByteStreamParser(Generic[TokenType]):
             while tokens:
                 yield popleft()
 
-    def parse(
-        self, on_token: ByteStreamTokenCallback
-    ) -> Generator[Awaitable, bytes, None]:
+    def parse(self, on_token: ByteStreamTokenCallback[TokenType]) -> Generator[Awaitable, bytes, None]:
         """Implement in a sub-class to define parse behavior.
 
         Args:
@@ -144,9 +142,7 @@ class ByteStream(ByteStreamParser[Tuple[str, bytes]]):
 
     """
 
-    def parse(
-        self, on_token: ByteStreamTokenCallback
-    ) -> Generator[Awaitable, bytes, None]:
+    def parse(self, on_token: ByteStreamTokenCallback[Tuple[str, bytes]]) -> Generator[Awaitable, bytes, None]:
         read1 = self.read1
         read = self.read
         from_bytes = int.from_bytes

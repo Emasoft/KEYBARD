@@ -5,9 +5,7 @@ SLEEP_GRANULARITY: float = 1 / 50
 SLEEP_IDLE: float = SLEEP_GRANULARITY / 20.0
 
 
-async def wait_for_idle(
-    min_sleep: float = SLEEP_GRANULARITY, max_sleep: float = 1
-) -> None:
+async def wait_for_idle(min_sleep: float = SLEEP_GRANULARITY, max_sleep: float = 1) -> None:
     """Wait until the process isn't working very hard.
 
     This will compare wall clock time with process time. If the process time

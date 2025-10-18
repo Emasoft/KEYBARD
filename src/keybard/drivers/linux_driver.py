@@ -1,30 +1,34 @@
 from __future__ import annotations
 
-import asyncio
+import logging
 import os
 import selectors
 import signal
 import sys
 import termios
 import tty
+import types
 from codecs import getincrementaldecoder
 from threading import Event, Thread
 from typing import TYPE_CHECKING, Any
 
 import rich.repr
 
-from textual import events
-from textual._loop import loop_last
-from textual._parser import ParseError
-from textual._xterm_parser import XTermParser
-from textual.driver import Driver
-from textual.drivers._writer_thread import WriterThread
-from textual.geometry import Size
-from textual.message import Message
-from textual.messages import InBandWindowResize
+from keybard import events
+from keybard._loop import loop_last
+from keybard._parser import ParseError
+from keybard._xterm_parser import XTermParser
+from keybard.driver import Driver
+from keybard.drivers._writer_thread import WriterThread
+from keybard.geometry import Size
+from keybard.message import Message
+from keybard.messages import InBandWindowResize
 
 if TYPE_CHECKING:
-    from textual.app import App
+    from keybard.reader import KeyboardReader
+
+
+logger = logging.getLogger("keybard.drivers.linux")
 
 
 @rich.repr.auto(angular=True)
@@ -33,7 +37,7 @@ class LinuxDriver(Driver):
 
     def __init__(
         self,
-        app: App,
+        reader: KeyboardReader,
         *,
         debug: bool = False,
         mouse: bool = True,
@@ -42,12 +46,17 @@ class LinuxDriver(Driver):
         """Initialize Linux driver.
 
         Args:
-            app: The App instance.
+            reader: The KeyboardReader instance.
             debug: Enable debug mode.
             mouse: Enable mouse support.
             size: Initial size of the terminal or `None` to detect.
         """
-        super().__init__(app, debug=debug, mouse=mouse, size=size)
+        super().__init__(reader, debug=debug, mouse=mouse, size=size)
+        # Fail-fast: stdin and stderr must exist for terminal I/O
+        if sys.__stdin__ is None:
+            raise RuntimeError("stdin is not available")
+        if sys.__stderr__ is None:
+            raise RuntimeError("stderr is not available")
         self._file = sys.__stderr__
         self.fileno = sys.__stdin__.fileno()
         self.input_tty = sys.__stdin__.isatty()
@@ -71,7 +80,7 @@ class LinuxDriver(Driver):
         signal.signal(signal.SIGTSTP, self._sigtstp_application)
         signal.signal(signal.SIGCONT, self._sigcont_application)
 
-    def _sigtstp_application(self, *_) -> None:
+    def _sigtstp_application(self, signum: int, frame: types.FrameType | None) -> None:
         """Handle a SIGTSTP signal."""
         # If we're supposed to auto-restart, that means we need to shut down
         # first.
@@ -84,7 +93,7 @@ class LinuxDriver(Driver):
         # process.
         os.kill(os.getpid(), signal.SIGSTOP)
 
-    def _sigcont_application(self, *_) -> None:
+    def _sigcont_application(self, signum: int, frame: types.FrameType | None) -> None:
         """Handle a SICONT application."""
         if self._auto_restart:
             self.resume_application_mode()
@@ -95,7 +104,7 @@ class LinuxDriver(Driver):
         return True
 
     def __rich_repr__(self) -> rich.repr.Result:
-        yield self._app
+        yield self._reader
 
     def _get_terminal_size(self) -> tuple[int, int]:
         """Detect the terminal size.
@@ -186,15 +195,15 @@ class LinuxDriver(Driver):
         assert self._writer_thread is not None, "Driver must be in application mode"
         self._writer_thread.write(data)
 
-    def start_application_mode(self):
+    def start_application_mode(self) -> None:
         """Start application mode."""
 
-        def _stop_again(*_) -> None:
+        def _stop_again(signum: int, frame: types.FrameType | None) -> None:
             """Signal handler that will put the application back to sleep."""
             os.kill(os.getpid(), signal.SIGSTOP)
 
         # If we're working with an actual tty...
-        # https://github.com/Textualize/textual/issues/4104
+        # https://github.com/Keybardize/keybard/issues/4104
         if os.isatty(self.fileno):
             # Set up handlers to ensure that, if there's a SIGTTOU or a SIGTTIN,
             # we go back to sleep.
@@ -221,22 +230,17 @@ class LinuxDriver(Driver):
                 signal.signal(signal.SIGTTOU, signal.SIG_DFL)
                 signal.signal(signal.SIGTTIN, signal.SIG_DFL)
 
-        loop = asyncio.get_running_loop()
-
         def send_size_event() -> None:
             terminal_size = self._get_terminal_size()
             width, height = terminal_size
-            textual_size = Size(width, height)
-            event = events.Resize(textual_size, textual_size)
-            asyncio.run_coroutine_threadsafe(
-                self._app._post_message(event),
-                loop=loop,
-            )
+            keybard_size = Size(width, height)
+            event = events.Resize(keybard_size, keybard_size)
+            self.process_message(event)
 
         self._writer_thread = WriterThread(self._file)
         self._writer_thread.start()
 
-        def on_terminal_resize(signum, stack) -> None:
+        def on_terminal_resize(signum: int, frame: types.FrameType | None) -> None:
             if not self._in_band_window_resize:
                 send_size_event()
 
@@ -276,7 +280,7 @@ class LinuxDriver(Driver):
         self.write("\x1b[>1u")  # https://sw.kovidgoyal.net/kitty/keyboard-protocol/
 
         self.flush()
-        self._key_thread = Thread(target=self._run_input_thread, name="textual-input")
+        self._key_thread = Thread(target=self._run_input_thread, name="keybard-input")
         send_size_event()
         self._key_thread.start()
         self._request_terminal_sync_mode_support()
@@ -287,14 +291,10 @@ class LinuxDriver(Driver):
         # Appears to fix an issue enabling mouse support in iTerm 3.5.0
         self._enable_mouse_support()
 
-        # If we need to ask the app to signal that we've come back from a
-        # SIGTSTP...
+        # If we need to signal that we've come back from a SIGTSTP...
         if self._must_signal_resume:
             self._must_signal_resume = False
-            asyncio.run_coroutine_threadsafe(
-                self._app._post_message(self.SignalResume()),
-                loop=loop,
-            )
+            self.process_message(self.SignalResume())
 
     def _request_terminal_sync_mode_support(self) -> None:
         """Writes an escape sequence to query the terminal support for the sync protocol."""
@@ -318,8 +318,8 @@ class LinuxDriver(Driver):
             New lflag.
 
         """
-        # if TEXTUAL_ALLOW_SIGNALS env var is set, then allow Ctrl+C to send signals
-        ISIG = 0 if os.environ.get("TEXTUAL_ALLOW_SIGNALS") else termios.ISIG
+        # if KEYBARD_ALLOW_SIGNALS env var is set, then allow Ctrl+C to send signals
+        ISIG = 0 if os.environ.get("KEYBARD_ALLOW_SIGNALS") else termios.ISIG
 
         return attrs & ~(termios.ECHO | termios.ICANON | termios.IEXTEN | ISIG)
 
@@ -352,9 +352,9 @@ class LinuxDriver(Driver):
                     termios.tcflush(self.fileno, termios.TCIFLUSH)
                 except termios.error:
                     pass
-        except Exception:
-            # TODO: log this
-            pass
+        except Exception as e:
+            # Log error when disabling input (e.g., signal handler failures, thread join issues)
+            logger.error(f"Error while disabling input: {e}", exc_info=True)
 
     def stop_application_mode(self) -> None:
         """Stop application mode, restore state."""
@@ -392,12 +392,11 @@ class LinuxDriver(Driver):
         try:
             self.run_input_thread()
         except BaseException:
-            import rich.traceback
+            # Log the error and stop the reader
+            import traceback
 
-            self._app.call_later(
-                self._app.panic,
-                rich.traceback.Traceback(),
-            )
+            traceback.print_exc()
+            self._reader.stop()
 
     def run_input_thread(self) -> None:
         """Wait for input and dispatch events."""

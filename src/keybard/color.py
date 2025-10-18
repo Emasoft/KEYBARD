@@ -1,14 +1,14 @@
 """
-This module contains a powerful [Color][textual.color.Color] class which Textual uses to manipulate colors.
+This module contains a powerful [Color][keybard.color.Color] class which Keybard uses to manipulate colors.
 
 ## Named colors
 
-The following named colors are used by the [parse][textual.color.Color.parse] method.
+The following named colors are used by the [parse][keybard.color.Color.parse] method.
 
 
 ```{.rich columns="80" title="colors"}
-from textual._color_constants import COLOR_NAME_TO_RGB
-from textual.color import Color
+from keybard._color_constants import COLOR_NAME_TO_RGB
+from keybard.color import Color
 from rich.table import Table
 from rich.text import Text
 table = Table("Name", "hex", "RGB", "Color", expand=True, highlight=True)
@@ -43,11 +43,11 @@ from rich.color_triplet import ColorTriplet
 from rich.terminal_theme import TerminalTheme
 from typing_extensions import Final
 
-from textual._color_constants import ANSI_COLORS, COLOR_NAME_TO_RGB
-from textual.css.scalar import percentage_string_to_float
-from textual.css.tokenize import CLOSE_BRACE, COMMA, DECIMAL, OPEN_BRACE, PERCENT
-from textual.geometry import clamp
-from textual.suggestions import get_suggestion
+from keybard._color_constants import ANSI_COLORS, COLOR_NAME_TO_RGB
+from keybard.css.scalar import percentage_string_to_float
+from keybard.css.tokenize import CLOSE_BRACE, COMMA, DECIMAL, OPEN_BRACE, PERCENT
+from keybard.geometry import clamp
+from keybard.suggestions import get_suggestion
 
 _TRUECOLOR = ColorType.TRUECOLOR
 
@@ -71,7 +71,7 @@ class HSL(NamedTuple):
             """Format a float."""
             return f"{number:.1f}".rstrip("0").rstrip(".")
 
-        return f"hsl({as_str(h*360)},{as_str(s*100)}%,{as_str(l*100)}%)"
+        return f"hsl({as_str(h * 360)},{as_str(s * 100)}%,{as_str(l * 100)}%)"
 
 
 class HSV(NamedTuple):
@@ -111,13 +111,9 @@ hsla{OPEN_BRACE}({DECIMAL}{COMMA}{PERCENT}{COMMA}{PERCENT}{COMMA}{DECIMAL}){CLOS
 )
 
 # Fast way to split a string of 6 characters into 3 pairs of 2 characters
-_split_pairs3: Callable[[str], tuple[str, str, str]] = itemgetter(
-    slice(0, 2), slice(2, 4), slice(4, 6)
-)
+_split_pairs3: Callable[[str], tuple[str, str, str]] = itemgetter(slice(0, 2), slice(2, 4), slice(4, 6))
 # Fast way to split a string of 8 characters into 4 pairs of 2 characters
-_split_pairs4: Callable[[str], tuple[str, str, str, str]] = itemgetter(
-    slice(0, 2), slice(2, 4), slice(4, 6), slice(6, 8)
-)
+_split_pairs4: Callable[[str], tuple[str, str, str, str]] = itemgetter(slice(0, 2), slice(2, 4), slice(4, 6), slice(6, 8))
 
 
 class ColorParseError(Exception):
@@ -142,7 +138,7 @@ class Color(NamedTuple):
 
     Example:
         ```python
-        >>> from textual.color import Color
+        >>> from keybard.color import Color
         >>> color = Color.parse("red")
         >>> color
         Color(255, 0, 0)
@@ -178,9 +174,7 @@ class Color(NamedTuple):
 
     @classmethod
     @lru_cache(maxsize=1024)
-    def from_rich_color(
-        cls, rich_color: RichColor | None, theme: TerminalTheme | None = None
-    ) -> Color:
+    def from_rich_color(cls, rich_color: RichColor | None, theme: TerminalTheme | None = None) -> Color:
         """Create a new color from Rich's Color class.
 
         Args:
@@ -193,9 +187,7 @@ class Color(NamedTuple):
         if rich_color is None:
             return TRANSPARENT
         r, g, b = rich_color.get_truecolor(theme)
-        return cls(
-            r, g, b, ansi=rich_color.number if rich_color.is_system_defined else None
-        )
+        return cls(r, g, b, ansi=rich_color.number if rich_color.is_system_defined else None)
 
     @classmethod
     def from_hsl(cls, h: float, s: float, l: float) -> Color:
@@ -268,9 +260,7 @@ class Color(NamedTuple):
         r, g, b, a, ansi, _ = self
         if ansi is not None:
             return RichColor.parse("default") if ansi < 0 else RichColor.from_ansi(ansi)
-        return RichColor(
-            f"#{r:02x}{g:02x}{b:02x}", _TRUECOLOR, None, ColorTriplet(r, g, b)
-        )
+        return RichColor(f"#{r:02x}{g:02x}{b:02x}", _TRUECOLOR, None, ColorTriplet(r, g, b))
 
     @property
     def normalized(self) -> tuple[float, float, float]:
@@ -334,11 +324,7 @@ class Color(NamedTuple):
         r, g, b, a, ansi, _ = self.clamped
         if ansi is not None:
             return "ansi_default" if ansi == -1 else f"ansi_{ANSI_COLORS[ansi]}"
-        return (
-            f"#{r:02X}{g:02X}{b:02X}"
-            if a == 1
-            else f"#{r:02X}{g:02X}{b:02X}{int(a*255):02X}"
-        )
+        return f"#{r:02X}{g:02X}{b:02X}" if a == 1 else f"#{r:02X}{g:02X}{b:02X}{int(a * 255):02X}"
 
     @property
     def hex6(self) -> str:
@@ -414,9 +400,7 @@ class Color(NamedTuple):
         return Color(r, g, b, a * alpha, auto=auto)
 
     @lru_cache(maxsize=1024)
-    def blend(
-        self, destination: Color, factor: float, alpha: float | None = None
-    ) -> Color:
+    def blend(self, destination: Color, factor: float, alpha: float | None = None) -> Color:
         """Generate a new color between two colors.
 
         This method calculates a new color on a gradient.
@@ -545,7 +529,12 @@ class Color(NamedTuple):
             except ValueError:
                 pass
             else:
-                return cls(*COLOR_NAME_TO_RGB.get(color_text), ansi=ansi)
+                # Get the color tuple for the ANSI color (r, g, b)
+                ansi_color = COLOR_NAME_TO_RGB.get(color_text)
+                if ansi_color is not None:
+                    # ansi_color is a tuple (r, g, b) - unpack it explicitly
+                    r, g, b = ansi_color[:3]  # Take first 3 elements only
+                    return cls(r, g, b, ansi=ansi)
         color_from_name = COLOR_NAME_TO_RGB.get(color_text)
         if color_from_name is not None:
             return cls(*color_from_name)
@@ -555,9 +544,7 @@ class Color(NamedTuple):
             suggested_color = None
             if not color_text.startswith(("#", "rgb", "hsl")):
                 # Seems like we tried to use a color name: let's try to find one that is close enough:
-                suggested_color = get_suggestion(
-                    color_text, list(COLOR_NAME_TO_RGB.keys())
-                )
+                suggested_color = get_suggestion(color_text, list(COLOR_NAME_TO_RGB.keys()))
                 if suggested_color:
                     error_message += f"; did you mean '{suggested_color}'?"
             raise ColorParseError(error_message, suggested_color)
@@ -593,9 +580,7 @@ class Color(NamedTuple):
             r, g, b = [clamp(int(float(value)), 0, 255) for value in rgb.split(",")]
             color = cls(r, g, b, 1.0)
         elif rgba is not None:
-            float_r, float_g, float_b, float_a = [
-                float(value) for value in rgba.split(",")
-            ]
+            float_r, float_g, float_b, float_a = [float(value) for value in rgba.split(",")]
             color = cls(
                 clamp(int(float_r), 0, 255),
                 clamp(int(float_g), 0, 255),
@@ -605,14 +590,14 @@ class Color(NamedTuple):
         elif hsl is not None:
             h, s, l = hsl.split(",")
             h = float(h) % 360 / 360
-            s = percentage_string_to_float(s)
-            l = percentage_string_to_float(l)
+            s = clamp(percentage_string_to_float(s), 0.0, 1.0)
+            l = clamp(percentage_string_to_float(l), 0.0, 1.0)
             color = Color.from_hsl(h, s, l)
         elif hsla is not None:
             h, s, l, a = hsla.split(",")
             h = float(h) % 360 / 360
-            s = percentage_string_to_float(s)
-            l = percentage_string_to_float(l)
+            s = clamp(percentage_string_to_float(s), 0.0, 1.0)
+            l = clamp(percentage_string_to_float(l), 0.0, 1.0)
             a = clamp(float(a), 0.0, 1.0)
             color = Color.from_hsl(h, s, l).with_alpha(a)
         else:  # pragma: no-cover
@@ -669,8 +654,8 @@ class Gradient:
 
         A gradient is defined by a sequence of "stops" consisting of a tuple containing a float and a color.
         The stop indicates the color at that point on a spectrum between 0 and 1.
-        Colors may be given as a [Color][textual.color.Color] instance, or a string that
-        can be parsed into a Color (with [Color.parse][textual.color.Color.parse]).
+        Colors may be given as a [Color][keybard.color.Color] instance, or a string that
+        can be parsed into a Color (with [Color.parse][keybard.color.Color.parse]).
 
         The `quality` argument defines the number of _steps_ in the gradient. Intermediate colors are
         interpolated from the two nearest colors. Increasing `quality` can generate a smoother looking gradient,
@@ -684,16 +669,7 @@ class Gradient:
             ValueError: If any stops are missing (must be at least a stop for 0 and 1).
         """
         parse = Color.parse
-        self._stops = sorted(
-            [
-                (
-                    (position, parse(color))
-                    if isinstance(color, str)
-                    else (position, color)
-                )
-                for position, color in stops
-            ]
-        )
+        self._stops = sorted([((position, parse(color)) if isinstance(color, str) else (position, color)) for position, color in stops])
         if len(stops) < 2:
             raise ValueError("At least 2 stops required.")
         if self._stops[0][0] != 0.0:
@@ -734,9 +710,7 @@ class Gradient:
                 step = step_position / (quality - 1)
                 while step > stop2:
                     position += 1
-                    (stop1, color1), (stop2, color2) = self._stops[
-                        position : position + 2
-                    ]
+                    (stop1, color1), (stop2, color2) = self._stops[position : position + 2]
                 add_color(color1.blend(color2, (step - stop1) / (stop2 - stop1)))
             self._colors = colors
         assert len(self._colors) == self._quality
@@ -751,7 +725,7 @@ class Gradient:
             position: A number between 0 and 1, where 0 is the first stop, and 1 is the last.
 
         Returns:
-            A Textual color.
+            A Keybard color.
         """
 
         if position <= 0:

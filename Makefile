@@ -14,7 +14,7 @@ test-snapshot-update:
 
 .PHONY: test-coverage
 test-coverage:
-	$(run) pytest tests/ --cov-report term-missing --cov=textual -n 16 --dist=loadgroup $(ARGS)
+	$(run) pytest tests/ --cov-report term-missing --cov=keybard -n 16 --dist=loadgroup $(ARGS)
 
 .PHONY: coverage
 coverage:
@@ -22,15 +22,15 @@ coverage:
 
 .PHONY: typecheck
 typecheck:
-	$(run) mypy src/textual
+	$(run) mypy src/keybard
 
 .PHONY: format
 format:
-	$(run) black src
+	$(run) ruff format --line-length=320 src tests
 
 .PHONY: format-check
 format-check:
-	$(run) black --check src
+	$(run) ruff format --check --line-length=320 src tests
 
 .PHONY: faq
 faq:
