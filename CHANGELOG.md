@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0a1] - 2025-10-18 (Alpha)
 
 ### Added
+
+#### Core Features
 - Initial release of KEYBARD as standalone keyboard input library
 - Cross-platform keyboard input support (Linux, macOS, Windows)
 - Battle-tested XTerm parser extracted from Textual framework
@@ -16,12 +18,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bracketed paste event detection
 - Focus event detection (AppFocus/AppBlur)
 - Resize event detection with pixel-accurate dimensions (when supported)
-- Comprehensive key display example (`examples/key_display.py`) with:
-  - Real-time event visualization
-  - State tracking (CLICK/KEY-DOWN/KEY-UP)
+
+#### Timing-Based Event Dispatcher (NEW in 0.2.0a1)
+- Optional timing-based event dispatcher for distinguishing taps vs holds
+- `KeyClick` event: Quick press/release within delta threshold (default 1s)
+- `KeyDown` event: Key held past delta threshold (emitted after waiting)
+- `KeyUp` event: Key released after being held
+- `DispatcherConfig` with 4 configurable parameters:
+  - `delta`: Time threshold for click vs hold (default: 1.0s)
+  - `release_timeout`: Time to detect release from repeat absence (default: 0.15s)
+  - `emit_repeats`: Emit KeyDown on each key repeat (default: False)
+  - `repeat_interval`: Min time between repeat emissions (default: 0.05s)
+- Thread-safe timer management for concurrent key tracking
+- Infers key release from absence of OS key repeat events
+- `use_dispatcher` parameter in KeyboardReader constructor
+- `dispatcher_config` parameter for custom timing configuration
+
+#### Documentation
+- Comprehensive README with 7 usage examples
+- "Timing-Based Event Model" section (127 lines)
+- "Important Limitation" section explaining terminal key repetition constraints
+- API_REFERENCE.md with complete API documentation (709 lines)
+- TECHNICAL_ARCHITECTURE.md explaining dispatcher internals (329 lines)
+- VERIFICATION_REPORT.md documenting all quality checks
+- Comprehensive ROADMAP with 150+ specific contribution opportunities organized in 16 categories
+
+#### Examples
+- `examples/key_display.py`: Real-time event visualization
+  - Support for both manual tracking and dispatcher modes (`--use-dispatcher`)
   - Millisecond-precision timestamps
   - Color-coded display for different key types
-  - Scrolling history of last 15 events
+  - Scrolling history of last 20 events
+- `examples/timed_keys.py`: Interactive timing-based events demo (NEW)
+  - Visual demonstration of KeyClick/KeyDown/KeyUp events
+  - Configurable delta threshold
+  - Real-time event history table
+  - In-UI warnings about terminal input limitations
+- `examples/quickstart.py`: Minimal 30-line getting started example
+
+#### Testing
+- 337 tests passing (100% pass rate), 2 skipped
+- 15 new dispatcher-specific tests covering:
+  - Configuration validation (5 tests)
+  - Event transformation (9 tests)
+  - Thread safety (1 test)
+- All tests run in parallel with pytest-xdist (16 workers)
 
 ### Changed
 - Focused codebase: Removed mouse support (keyboard-only)
@@ -29,11 +70,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed syntax highlighting dependencies (tree-sitter parsers)
 - Removed unused modules: 18 modules and 1 test utility (52KB dead code)
 - Removed obsolete validation module and tests
+- Test count updated from 379 to 337 (removed obsolete tests)
+
+### Fixed
+- Removed incomplete combo detection feature (combo_window parameter)
+- Marked ComboClick/ComboKeyDown events as "FUTURE FEATURE" (not yet implemented)
+- Updated all documentation to accurately reflect current capabilities
+- Fixed key_display.py flickering issue with proper state tracking
 
 ### Technical Details
 - Python requirement: >=3.12
-- All 379 core tests passing
-- Full type annotation support
+- 337 tests passing, 2 skipped (100% pass rate)
+- Full type annotation support (mypy --strict compliant)
+- Zero linting errors (ruff)
+- Package size: 105 KB wheel, 82 KB source
 - MIT License
 
 ### Acknowledgments

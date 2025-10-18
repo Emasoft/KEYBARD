@@ -37,6 +37,63 @@ Perfect for understanding the fundamentals before moving to more complex example
 
 ---
 
+### timed_keys.py - Timing-Based Events Demo
+
+An interactive demonstration of KEYBARD's timing-based event model that distinguishes between quick taps and prolonged holds.
+
+**What it demonstrates:**
+
+- **Timing-based events**:
+  - `KeyClick` - Quick press and release (within delta threshold, default 1.0s)
+  - `KeyDown` - Key held past the delta threshold (emitted after waiting)
+  - `KeyUp` - Key released after being held
+- **Configurable delta threshold**: Adjust the time threshold for click vs hold
+- **Real-time event history**: Table showing the last 15 events with timestamps
+- **Terminal limitation warnings**: Clear in-UI warnings about keys without OS repetition
+- **Visual demonstration**: Color-coded display (Click=green, KeyDown=yellow, KeyUp=red)
+
+**How to run:**
+
+```bash
+uv run examples/timed_keys.py
+```
+
+**What you'll see:**
+
+The demo displays a help panel explaining the timing model, followed by a table showing recent events:
+
+| Time     | Event Type | Key | Duration/Time |
+|----------|------------|-----|---------------|
+| 12:34:56 | CLICK      | a   | 0.123s        |
+| 12:34:58 | KEY-DOWN   | b   | 1.002s        |
+| 12:35:00 | KEY-UP     | b   | 2.456s        |
+
+**Controls:**
+
+- **Tap 'a' quickly** → See CLICK event
+- **Hold 'b' for 2 seconds** → See KEY-DOWN (after 1s wait), then KEY-UP on release
+- Press **q** or **Ctrl+C** to quit
+
+**Important limitation:**
+
+The demo includes prominent warnings about terminal key repetition:
+- Keys WITH OS repetition (a-z, 0-9, arrows): Can detect KeyDown/KeyUp
+- Keys WITHOUT repetition (Escape, modifiers alone): Always emit Click after delta
+- This is a fundamental terminal input constraint, not a library bug
+
+The KeyDown event only appears AFTER the delta timeout has passed while the key is still held. This is expected behavior - the dispatcher must wait to distinguish between a quick tap and a hold.
+
+**Technical details:**
+
+- Uses `KeyEventDispatcher` with configurable `DispatcherConfig`
+- Non-blocking event polling with `KeyboardReader.poll()`
+- Rich table display with color-coded event types
+- Delta threshold default: 1.0s (configurable)
+- Release timeout: 0.15s for inferring key release
+- Demonstrates OS key repeat pattern detection
+
+---
+
 ### key_display.py - Comprehensive Key State Tracker
 
 A visual demonstration of KEYBARD's keyboard input detection capabilities showing not just
