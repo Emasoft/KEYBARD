@@ -1,6 +1,6 @@
 [project]
 name = "keybard"
-version = "0.2.0a1"
+version = "0.3.0a1"
 description = "Cross-platform keyboard-only input library for Python terminals"
 readme = "README.md"
 keywords = ["keyboard", "input", "terminal", "console", "cli", "tui", "xterm", "ansi", "escape-sequences"]
