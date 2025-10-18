@@ -5,7 +5,7 @@ Key event dispatcher with timing-based event model.
 
 This module provides a dispatcher that transforms immediate key press events
 into timing-based events (Click, KeyDown, KeyUp) based on configurable
-time thresholds.
+time thresholds and terminal key repetition behavior.
 
 The dispatcher distinguishes between:
 - CLICK: Key pressed and released within delta threshold
@@ -13,6 +13,24 @@ The dispatcher distinguishes between:
 - KEY UP: Key released after a KEY DOWN
 - COMBO CLICK: Multiple keys pressed, all released within delta
 - COMBO KEY DOWN: Multiple keys pressed and held past delta
+
+IMPORTANT LIMITATION:
+--------------------
+Terminal input only provides key press events, never explicit key release events.
+The dispatcher infers key state from OS/terminal key repetition behavior:
+
+- Keys WITH repetition (a-z, 0-9, arrows): Generate rapid repeat events when held
+  → Can detect KeyDown/KeyUp based on repeat presence/absence
+
+- Keys WITHOUT repetition (Escape, modifiers alone, some F-keys): Single event only
+  → Will always emit KeyClick after delta timeout, even if still physically held
+  → Cannot detect true hold duration for these keys
+
+- Modifier combos: If the non-modifier key has repetition, the combo repeats
+  → Shift+A generates repeated 'A' characters when held
+
+This is a fundamental constraint of terminal input and affects all terminal-based
+key state detection, not just this library.
 """
 
 from __future__ import annotations
@@ -118,34 +136,42 @@ class KeyEventDispatcher:
         """
         Handle a raw key event from the parser.
 
-        In terminals, we only get key press events (no release events).
-        We detect "release" by absence of repeats. This works because:
-        - Holding a key generates rapid repeat events
-        - Releasing a key stops the repeats
+        IMPORTANT: Terminal Key Repetition Behavior
+        ===========================================
 
-        However, this model requires a different approach than the user described.
-        Let me reconsider...
+        Terminals only send key press events, never explicit release events.
+        Key repetition is controlled by the OS/terminal and varies by key type:
 
-        Actually, the user's requirement assumes we can detect press AND release
-        separately. But in terminal input, we don't get explicit release events.
-        We only get:
-        1. Initial key press
-        2. Repeat events if held
+        1. **Keys with repetition ENABLED** (letters, numbers, arrows, etc.):
+           - First press → Initial Key event
+           - Hold down → Rapid repeat Key events (OS-configured rate, typically ~30/sec)
+           - Release → Repeat events stop
 
-        The current key_display.py implementation uses this to detect:
-        - CLICK: Single event (no repeats)
-        - KEY-DOWN: Multiple repeat events
-        - KEY-UP: Absence of repeats after KEY-DOWN
+        2. **Keys with repetition DISABLED** (Escape, some function keys, modifiers):
+           - First press → Initial Key event
+           - Hold down → NO additional events (even if physically held)
+           - Release → No event
 
-        For the user's model to work, we need to either:
-        1. Accept this limitation (no true release detection)
-        2. Use the repeat pattern to infer release
+        3. **Modifier keys** (Ctrl, Alt, Shift, Meta):
+           - Alone: Usually no repetition (single event only)
+           - With repeating key: The COMBO repeats (e.g., Shift+A → AAAAA)
 
-        Let me implement using the repeat pattern approach:
-        - First event for a key → PRESSED state, start timer
-        - Timer expires (delta) without repeat → emit CLICK
-        - Repeat event arrives → transition to HELD, emit KEY-DOWN
-        - No repeats for timeout → emit KEY-UP
+        Detection Strategy
+        ==================
+
+        Since we cannot detect true key release, we infer state from repeat patterns:
+
+        - **CLICK**: First Key event → wait delta → no repeat received → emit KeyClick
+          (Note: Even if key is still held, we emit Click if no repeats arrive)
+
+        - **KEY-DOWN**: First Key event → repeat arrives → emit KeyDown immediately
+          (Key has repetition enabled and is being held)
+
+        - **KEY-UP**: After KEY-DOWN → repeats stop for release_timeout → emit KeyUp
+          (Inferred release by absence of repeats)
+
+        LIMITATION: Keys without OS-level repetition will ALWAYS emit KeyClick,
+        even if physically held down, because we never receive repeat events.
 
         Args:
             event: Key event from parser

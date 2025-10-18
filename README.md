@@ -415,12 +415,34 @@ with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
                 print(f"Still holding: {event.key} (repeat #{event.repeat_count})")
 ```
 
+### Important Limitation: Terminal Key Repetition
+
+**Critical to understand:** Terminal input only provides key press events, never explicit key release events. The dispatcher infers key state from OS/terminal key repetition behavior:
+
+#### Keys WITH Repetition (letters, numbers, arrows, etc.)
+- Holding generates rapid repeat events (~30/sec, OS-configured)
+- ✅ Can detect KeyDown (repeats start) and KeyUp (repeats stop)
+- ✅ Works as expected with timing-based events
+
+#### Keys WITHOUT Repetition (Escape, modifiers alone, some F-keys)
+- Holding generates NO additional events (only initial press)
+- ⚠️ **Will always emit KeyClick** after delta timeout, even if still physically held
+- ⚠️ Cannot detect true hold duration for these keys
+- This is a fundamental terminal input limitation, not a library bug
+
+#### Modifier Combinations
+- Modifiers alone: Usually no repetition (single event only)
+- Modifiers + repeating key: The combo repeats (e.g., Shift+A → AAAAA)
+- ✅ Can detect KeyDown/KeyUp for combos with repeating keys
+
+**Workaround:** For keys without repetition, use raw `Key` events (default mode without dispatcher) or accept that they will emit KeyClick after the delta timeout regardless of hold duration.
+
 ### Compatibility
 
 The timing-based dispatcher is **optional** and **fully backward compatible**:
 
 - **Without dispatcher** (default): You receive raw `Key` events immediately
-- **With dispatcher**: You receive `KeyClick`, `KeyDown`, `KeyUp` events based on timing
+- **With dispatcher**: You receive `KeyClick`, `KeyDown`, `KeyUp` events based on timing and repetition
 
 Non-key events (Paste, Resize, etc.) are always passed through unchanged.
 

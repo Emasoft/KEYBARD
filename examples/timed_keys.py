@@ -13,6 +13,13 @@ Demonstrates the timing-based event model that distinguishes between:
 This model allows applications to respond differently to quick taps vs
 prolonged holds, enabling richer interaction patterns.
 
+IMPORTANT LIMITATION:
+Terminal input only provides key press events, never key release events.
+The dispatcher infers hold/release from OS key repetition behavior:
+- Keys WITH repetition (a-z, 0-9, arrows): Can detect KeyDown/KeyUp
+- Keys WITHOUT repetition (Escape, modifiers alone): Always emit Click after delta
+This is a fundamental constraint of terminal input, not a library bug.
+
 Press Ctrl+C or 'q' to quit.
 """
 
@@ -87,6 +94,13 @@ def create_help_panel(delta: float) -> Panel:
     help_text.append("COMBO-KEY-DOWN\n", style="blue")
 
     help_text.append("\nNotice the delay before KEY-DOWN!\n", style="bold yellow")
+
+    help_text.append("\n⚠️  ", style="dim")
+    help_text.append("LIMITATION:", style="bold red")
+    help_text.append(" Keys without OS repetition\n", style="dim")
+    help_text.append("(Escape, modifiers alone) will emit CLICK after\n", style="dim")
+    help_text.append("delta timeout even if still held. This is a\n", style="dim")
+    help_text.append("fundamental terminal input constraint.\n", style="dim")
 
     return Panel(
         help_text,
