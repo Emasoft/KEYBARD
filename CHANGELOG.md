@@ -98,6 +98,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance optimizations
 - Extended documentation
 
+## [0.3.0a1] - 2025-10-18 (Alpha)
+
+### Changed
+- Version bump to 0.3.0a1 for continued alpha development
+- No functional changes from 0.2.0a1
+
 ---
 
+[0.3.0a1]: https://github.com/Emasoft/KEYBARD/releases/tag/v0.3.0a1
 [0.2.0a1]: https://github.com/Emasoft/KEYBARD/releases/tag/v0.2.0a1
