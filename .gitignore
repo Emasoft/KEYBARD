@@ -138,9 +138,13 @@ NOTES*.md
 *~
 .log
 
+# Distribution artifacts
+examples/*.zip
+
 # Development directories (should not be in package)
 .clirope/
 .mega-copy/
+.serena/
 
 # Obsolete documentation (old refactoring notes)
 DEBUGPANEL_GUIDE.md

@@ -10,7 +10,7 @@
 
 ## Project Information
 
-- **Version**: 0.2.0a1 ⚠️ **ALPHA** - Under active development
+- **Version**: 0.3.0a1 ⚠️ **ALPHA** - Under active development
 - **Python**: 3.12+
 - **Platforms**: Linux, macOS, Windows
 - **License**: MIT
@@ -52,7 +52,7 @@ uv sync
 # Build the wheel
 uv build
 
-# The wheel will be in dist/keybard-0.2.0a1-py3-none-any.whl
+# The wheel will be in dist/keybard-0.3.0a1-py3-none-any.whl
 ```
 
 ### Installing in Your Project
@@ -66,10 +66,10 @@ Add KEYBARD to your project using the built wheel:
 cd /path/to/your/project
 
 # Add KEYBARD wheel as a dependency
-uv add /path/to/KEYBARD/dist/keybard-0.2.0a1-py3-none-any.whl
+uv add /path/to/KEYBARD/dist/keybard-0.3.0a1-py3-none-any.whl
 
 # Or install directly in your venv
-uv pip install /path/to/KEYBARD/dist/keybard-0.2.0a1-py3-none-any.whl
+uv pip install /path/to/KEYBARD/dist/keybard-0.3.0a1-py3-none-any.whl
 ```
 
 #### Option 2: Install as Editable (Development)
@@ -307,7 +307,7 @@ with reader:
 
 ## Timing-Based Event Model
 
-KEYBARD v0.2.0+ includes an optional **timing-based event dispatcher** that transforms raw key events into higher-level events based on how long keys are held:
+KEYBARD v0.3.0+ includes an optional **timing-based event dispatcher** that transforms raw key events into higher-level events based on how long keys are held:
 
 ### Event Types
 
@@ -858,9 +858,10 @@ A: No. KEYBARD is keyboard-only by design. For mouse support, use the full [Text
 
 See **[CHANGELOG.md](CHANGELOG.md)** for version history and release notes.
 
-### Latest Release: 0.2.0a1 (Alpha)
+### Latest Release: 0.3.0a1 (Alpha)
 
-- Initial alpha release
+- Timing-based event dispatcher (KeyClick, KeyDown, KeyUp events)
+- Improved key state tracking and event detection
 - Cross-platform keyboard input (Linux, macOS, Windows)
 - Battle-tested XTerm parser from Textual
 - Blocking, non-blocking, and callback modes

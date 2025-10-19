@@ -101,6 +101,9 @@ what keys are pressed, but tracking their states (press/hold/release).
 
 **What it demonstrates:**
 
+- **Two Operating Modes**:
+  - **Manual tracking mode** (default): Demonstrates custom repeat-based key state detection
+  - **Dispatcher mode** (`--use-dispatcher`): Uses built-in timing-based event system
 - **Key States**:
   - `CLICK` (green) - Initial key press
   - `KEY-DOWN` (yellow) - Key is being held down (repeat events)
@@ -123,8 +126,14 @@ what keys are pressed, but tracking their states (press/hold/release).
 **How to run:**
 
 ```bash
-# From the repository root
+# Manual tracking mode (default) - demonstrates custom key state detection
 uv run examples/key_display.py
+
+# Dispatcher mode - uses built-in timing system (recommended)
+uv run examples/key_display.py --use-dispatcher
+
+# Dispatcher mode with custom delta threshold (0.5 seconds)
+uv run examples/key_display.py --use-dispatcher --delta 0.5
 
 # Or make it executable and run directly
 chmod +x examples/key_display.py
@@ -201,50 +210,116 @@ Multiple modifiers:
 
 **Technical details:**
 
-- Uses `KeyboardReader.poll()` for non-blocking event retrieval
-- Tracks key state with `KeyTracker` class monitoring press/hold/release
-- Infers KEY-UP events using 150ms timeout (no events = key released)
-- Separates modifiers from base keys for clearer display
-- Shows millisecond-precision timestamps for timing analysis
-- Displays currently held keys at bottom of screen
-- Updates display at 100 FPS (10ms poll interval) for responsive feedback
-- Uses Rich library for beautiful table formatting and colors
-- Color codes: CLICK=green, KEY-DOWN=yellow, KEY-UP=red
+- **Manual Mode** (default):
+  - Uses `KeyboardReader.poll()` for non-blocking event retrieval
+  - Implements custom `KeyTracker` class to demonstrate state detection
+  - Infers KEY-UP events using 150ms timeout (no events = key released)
+  - Educational: shows how to build timing-based detection manually
+- **Dispatcher Mode** (`--use-dispatcher`):
+  - Uses built-in `KeyEventDispatcher` with configurable `DispatcherConfig`
+  - Receives `KeyClick`, `KeyDown`, `KeyUp` events directly from KEYBARD
+  - More accurate timing and recommended for production use
+- **Display Features**:
+  - Separates modifiers from base keys for clearer display
+  - Millisecond-precision timestamps for timing analysis
+  - Shows currently held keys at bottom of screen (manual mode)
+  - Updates display at ~100 FPS (10ms poll interval) for responsive feedback
+  - Rich library for beautiful table formatting and colors
+  - Color codes: CLICK=green, KEY-DOWN=yellow, KEY-UP=red
 
 ## Creating Your Own Examples
 
-KEYBARD makes it easy to create interactive terminal applications. Here's a minimal example:
+KEYBARD makes it easy to create interactive terminal applications. Here are the essential patterns:
+
+### Pattern 1: Simple Blocking Input (like quickstart.py)
+
+For interactive prompts and simple CLI tools:
 
 ```python
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from keybard import KeyboardReader
 from keybard.events import Key
 
-# Create reader
-reader = KeyboardReader()
-
-# Start reading keys
-with reader:
+# Context manager ensures terminal cleanup on exit
+with KeyboardReader() as reader:
     while True:
-        # Get all pending events (non-blocking)
+        # Block until a key is pressed
+        event = reader.read_key()
+
+        if isinstance(event, Key):
+            print(f"Key pressed: {event.key}")
+
+            if event.key == "q":
+                break
+```
+
+### Pattern 2: Non-Blocking Game Loop (like key_display.py)
+
+For games, animations, or real-time UIs:
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import time
+from keybard import KeyboardReader
+from keybard.events import Key
+
+with KeyboardReader() as reader:
+    while True:
+        # Get all pending events without blocking
         events = reader.poll()
 
         for event in events:
             if isinstance(event, Key):
-                print(f"Key pressed: {event.key}")
-
                 if event.key == "q":
                     exit(0)
+                # Process other keys...
+
+        # Update game state, render, etc.
+        # ...
+
+        # Prevent CPU spinning
+        time.sleep(0.01)
+```
+
+### Pattern 3: Timing-Based Events (like timed_keys.py)
+
+For applications that need to distinguish quick taps from holds:
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+from keybard import KeyboardReader
+from keybard.dispatcher import DispatcherConfig
+from keybard.events import KeyClick, KeyDown, KeyUp
+
+# Configure timing threshold
+config = DispatcherConfig(delta=0.5)  # 500ms threshold
+
+with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
+    while True:
+        events = reader.poll()
+
+        for event in events:
+            if isinstance(event, KeyClick):
+                print(f"Quick tap: {event.key}")
+            elif isinstance(event, KeyDown):
+                print(f"Holding: {event.key}")
+            elif isinstance(event, KeyUp):
+                print(f"Released: {event.key}")
 ```
 
 ### Key Concepts
 
-1. **Non-blocking input**: Use `poll()` to get all pending events without blocking
-2. **Blocking input**: Use `read_key(timeout=...)` to wait for a single key
-3. **Event types**: Check `isinstance(event, Key)` to filter key events
-4. **Key names**: Access normalized key names via `event.key` (e.g., "ctrl+c", "shift+up")
-5. **Context manager**: Use `with reader:` to automatically start/stop the reader
+1. **Context Manager**: Use `with reader:` to automatically start/stop the reader and restore terminal state
+2. **Blocking Input**: Use `read_key(timeout=...)` to wait for a single key (good for prompts)
+3. **Non-Blocking Input**: Use `poll()` to get all pending events without waiting (good for games/UIs)
+4. **Event Types**: Check `isinstance(event, Key)` to filter different event types
+5. **Key Names**: Access normalized key names via `event.key` (e.g., "ctrl+c", "shift+up", "a")
 6. **Modifiers**: Modifiers are part of the key name (e.g., "ctrl+c", not separate events)
+7. **Timing Events**: Enable dispatcher to get `KeyClick`, `KeyDown`, `KeyUp` instead of raw `Key` events
+8. **Terminal Cleanup**: Always use the context manager - it restores terminal state even if your code crashes
 
 ### Ideas for More Examples
 
