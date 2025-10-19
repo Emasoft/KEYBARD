@@ -16,6 +16,11 @@ class Keys(str, Enum):
 
     @property
     def value(self) -> str:
+        """Return the string value of this Keys enum member.
+
+        Returns:
+            The string representation of this key (e.g., "ctrl+c", "enter", "f1").
+        """
         return super().value  # type: ignore[no-any-return]
 
     Escape = "escape"  # Also Control-[
