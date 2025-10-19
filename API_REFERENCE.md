@@ -1,8 +1,8 @@
 # KEYBARD API Reference
 
-**Version**: 0.2.0a1 (Alpha)
+**Version**: 0.3.0a1 (Alpha)
 
-This document provides the complete API reference for KEYBARD. All public APIs are fully type-annotated.
+This document provides the complete API reference for KEYBARD. All public APIs are fully type-annotated and documented.
 
 ---
 
@@ -133,13 +133,29 @@ Run the event loop (blocks until stop() is called).
 
 ```python
 def run(self) -> None:
-    """Run event loop with callback.
+    """Run the event loop (blocks until stop() is called).
 
-    Requires a callback to be set in __init__.
-    Blocks until stop() is called.
+    This method requires a callback to be set in __init__.
+    It's useful for callback-based architecture where you want
+    all event handling to happen in the callback.
+
+    Returns:
+        None (blocks until stop() is called from within callback or another thread)
 
     Raises:
-        ValueError: If no callback was provided.
+        ValueError: If no callback was provided in __init__
+
+    Example:
+        ```python
+        def on_event(event):
+            print(f"Event: {event}")
+            if event.key == "q":
+                reader.stop()
+
+        reader = KeyboardReader(callback=on_event)
+        with reader:
+            reader.run()  # Blocks here, callback handles events
+        ```
     """
 ```
 
@@ -157,16 +173,17 @@ with reader:
 
 ---
 
-#### start() / stop()
+#### start()
 
-Manually start/stop the reader.
+Start the keyboard reader and put terminal into raw mode.
 
 ```python
 def start(self) -> None:
-    """Start the keyboard reader."""
+    """Start reading keyboard/mouse input from the terminal.
 
-def stop(self) -> None:
-    """Stop the keyboard reader."""
+    Returns:
+        None
+    """
 ```
 
 **Example**:
@@ -176,7 +193,26 @@ reader = KeyboardReader()
 reader.start()
 # ... use reader ...
 reader.stop()
+```
 
+---
+
+#### stop()
+
+Stop the keyboard reader and restore terminal to normal mode.
+
+```python
+def stop(self) -> None:
+    """Stop reading and restore terminal to normal mode.
+
+    Returns:
+        None
+    """
+```
+
+**Example**:
+
+```python
 # Or use context manager (recommended)
 with KeyboardReader() as reader:
     # ... use reader ...
@@ -537,10 +573,180 @@ with KeyboardReader(use_dispatcher=True, dispatcher_config=config) as reader:
 
 **See Also**: [README.md - Timing-Based Event Model](README.md#timing-based-event-model) for usage examples.
 
-size = reader.terminal_size
-if size:
-    cells = size.width * size.height
-    print(f"Terminal has {cells} cells")
+---
+
+### KeyEventDispatcher
+
+The dispatcher that transforms raw Key events into timing-based events.
+
+```python
+class KeyEventDispatcher:
+    """Dispatcher that transforms immediate key events into timing-based events.
+
+    This dispatcher receives raw Key events from the parser and emits:
+    - KeyClick: Press + release within delta threshold
+    - KeyDown: Key held past delta (emitted after waiting)
+    - KeyUp: Key released after KeyDown
+
+    The dispatcher buffers events and uses timers to determine the appropriate
+    event type based on timing. This allows distinguishing between quick taps
+    and prolonged holds.
+
+    Modifier combinations (Ctrl+C, Shift+A, etc.) are received from the terminal
+    parser as atomic Key events (e.g., key="ctrl+c") and are treated as single keys.
+
+    Args:
+        callback: Function to call with timed events
+        config: Configuration for timing thresholds
+    """
+```
+
+**Note**: You typically don't instantiate this directly - use `KeyboardReader(use_dispatcher=True)` instead.
+
+---
+
+#### feed()
+
+Feed an event to the dispatcher for processing.
+
+```python
+def feed(self, event: Event) -> None:
+    """Feed an event to the dispatcher.
+
+    Key events are processed through the timing state machine.
+    All other events are passed through immediately.
+
+    Args:
+        event: Event from the parser (Key, Paste, Resize, etc.)
+
+    Returns:
+        None
+    """
+```
+
+**Parameters**:
+
+- `event` (Event): Event to process (Key events are transformed, others pass through)
+
+**Returns**: `None`
+
+---
+
+#### stop()
+
+Stop the dispatcher and cancel all pending timers.
+
+```python
+def stop(self) -> None:
+    """Stop the dispatcher and cancel all pending timers.
+
+    Call this when shutting down to ensure clean cleanup.
+
+    Returns:
+        None
+    """
+```
+
+**Returns**: `None`
+
+**Example**:
+
+```python
+# Usually called automatically by KeyboardReader.stop()
+# But if using dispatcher manually:
+dispatcher.stop()
+```
+
+---
+
+## Utility Functions
+
+### format_key()
+
+Format a key identifier for display in the UI.
+
+```python
+def format_key(key: str) -> str:
+    """Format a key identifier for display in the UI.
+
+    Converts internal key names to human-friendly display formats, using
+    Unicode symbols for common keys (arrows, enter, backspace) and printable
+    characters where appropriate.
+
+    Args:
+        key: The key identifier (e.g., "ctrl+c", "up", "enter", "exclamation_mark")
+
+    Returns:
+        Formatted display string (e.g., "↑" for "up", "⏎" for "enter", "!" for "exclamation_mark")
+    """
+```
+
+**Parameters**:
+
+- `key` (str): The key identifier to format
+
+**Returns**: `str` - Human-friendly display string with Unicode symbols
+
+**Example**:
+
+```python
+from keybard.keys import format_key
+
+# Format arrow keys
+print(format_key("up"))      # → "↑"
+print(format_key("down"))    # → "↓"
+print(format_key("left"))    # → "←"
+print(format_key("right"))   # → "→"
+
+# Format special keys
+print(format_key("enter"))   # → "⏎"
+print(format_key("escape"))  # → "esc"
+
+# Format punctuation
+print(format_key("exclamation_mark"))  # → "!"
+print(format_key("at"))                # → "@"
+```
+
+---
+
+### key_to_character()
+
+Convert a key identifier to its character representation.
+
+```python
+def key_to_character(key: str) -> str | None:
+    """Given a key identifier, return the character associated with it.
+
+    Args:
+        key: The key identifier.
+
+    Returns:
+        A key if one could be found, otherwise `None`.
+    """
+```
+
+**Parameters**:
+
+- `key` (str): The key identifier
+
+**Returns**: `str | None` - The character, or `None` if the key has no character representation
+
+**Example**:
+
+```python
+from keybard.keys import key_to_character
+
+# Get character from key name
+print(key_to_character("a"))              # → "a"
+print(key_to_character("space"))          # → " "
+print(key_to_character("exclamation_mark")) # → "!"
+
+# Keys with modifiers have no character
+print(key_to_character("ctrl+c"))         # → None
+
+# Special keys have no character
+print(key_to_character("enter"))          # → None
+print(key_to_character("escape"))         # → None
 ```
 
 ---
@@ -695,7 +901,7 @@ Tested on:
 
 ## Version
 
-This API reference is for **KEYBARD 0.2.0a1 (Alpha)**.
+This API reference is for **KEYBARD 0.3.0a1 (Alpha)**.
 
 For the latest version, see [CHANGELOG.md](CHANGELOG.md).
 
