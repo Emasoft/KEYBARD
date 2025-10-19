@@ -220,12 +220,20 @@ class KeyboardReader:
         self.stop()
 
     def start(self) -> None:
-        """Start reading keyboard/mouse input from the terminal."""
+        """Start reading keyboard/mouse input from the terminal.
+
+        Returns:
+            None
+        """
         self._running.set()
         self._driver.start_application_mode()
 
     def stop(self) -> None:
-        """Stop reading and restore terminal to normal mode."""
+        """Stop reading and restore terminal to normal mode.
+
+        Returns:
+            None
+        """
         self._running.clear()
         if self._dispatcher:
             self._dispatcher.stop()
@@ -293,6 +301,9 @@ class KeyboardReader:
         This method requires a callback to be set in __init__.
         It's useful for callback-based architecture where you want
         all event handling to happen in the callback.
+
+        Returns:
+            None (blocks until stop() is called from within callback or another thread)
 
         Raises:
             ValueError: If no callback was provided in __init__

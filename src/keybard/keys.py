@@ -293,9 +293,18 @@ def _get_key_aliases(key: str) -> list[str]:
 
 @lru_cache(1024)
 def format_key(key: str) -> str:
-    """Given a key (i.e. the `key` string argument to Binding __init__),
-    return the value that should be displayed in the app when referring
-    to this key (e.g. in the Footer widget)."""
+    """Format a key identifier for display in the UI.
+
+    Converts internal key names to human-friendly display formats, using
+    Unicode symbols for common keys (arrows, enter, backspace) and printable
+    characters where appropriate.
+
+    Args:
+        key: The key identifier (e.g., "ctrl+c", "up", "enter", "exclamation_mark")
+
+    Returns:
+        Formatted display string (e.g., "↑" for "up", "⏎" for "enter", "!" for "exclamation_mark")
+    """
 
     display_alias = KEY_DISPLAY_ALIASES.get(key)
     if display_alias:

@@ -122,6 +122,9 @@ class KeyEventDispatcher:
 
         Args:
             event: Event from the parser (Key, Paste, Resize, etc.)
+
+        Returns:
+            None
         """
         if isinstance(event, Key):
             self._handle_key_event(event)
@@ -320,6 +323,9 @@ class KeyEventDispatcher:
         Stop the dispatcher and cancel all pending timers.
 
         Call this when shutting down to ensure clean cleanup.
+
+        Returns:
+            None
         """
         with self._lock:
             for key_info in self._keys.values():
