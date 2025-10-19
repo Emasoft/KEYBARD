@@ -490,6 +490,10 @@ For complete API documentation including all classes, methods, and parameters, s
 
 **[API_REFERENCE.md](API_REFERENCE.md)** *(Generated from docstrings)*
 
+For a quick reference guide with constants, commands, and functions organized in tables:
+
+**[KEYBARD_CHEATSHEET.md](KEYBARD_CHEATSHEET.md)** *(Quick reference cheatsheet)*
+
 Quick reference:
 
 - **KeyboardReader**: Main class for reading keyboard input
