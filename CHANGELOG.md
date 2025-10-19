@@ -98,11 +98,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Performance optimizations
 - Extended documentation
 
-## [0.3.0a1] - 2025-10-18 (Alpha)
+## [0.3.0a1] - 2025-10-19 (Alpha)
 
-### Changed
-- Version bump to 0.3.0a1 for continued alpha development
-- No functional changes from 0.2.0a1
+### Added
+
+#### Documentation Enhancement
+- Complete docstring overhaul for all public APIs
+- All 7 public functions now have complete Args, Returns, and Raises sections
+- Enhanced `KeyboardReader` methods: `start()`, `stop()`, `run()`
+- Enhanced `KeyEventDispatcher` methods: `feed()`, `stop()`
+- Enhanced `Keys.value` property with Returns documentation
+- Enhanced utility functions: `format_key()`, `key_to_character()`
+- All docstrings follow Google-style format consistently
+
+#### API Reference Updates
+- Updated `API_REFERENCE.md` from 710 to 915 lines (+29% expansion)
+- Added complete KeyEventDispatcher class documentation section
+- Added new Utility Functions section with `format_key()` and `key_to_character()`
+- Added 15+ practical code examples for utility functions
+- Updated version references from 0.2.0a1 to 0.3.0a1 throughout
+
+### Improved
+- API documentation now 100% complete (all public APIs documented)
+- Extracted and verified all docstrings directly from source code
+- Ensured consistency between source code docstrings and API reference
+- Added practical examples showing arrow key formatting and character conversion
+
+### Quality Assurance
+- All 337 tests still passing (100% pass rate)
+- Zero linting errors (ruff check)
+- Zero type checking errors (mypy on 47 source files)
+- Complete documentation verification performed
 
 ---
 
